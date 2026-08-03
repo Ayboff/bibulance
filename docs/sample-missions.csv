@@ -1,0 +1,7 @@
+# Exemple d'import CSV Bibulance
+# Colonnes minimales: source_mission_id, rdv_time
+
+source_mission_id,rdv_time,status,patient_last_name,patient_first_name,emitter_facility,destination_facility,vehicle_type,care_type,notes
+AMB-1001,2026-08-04 09:30,programmee,Dupont,Marie,Clinique Pasteur,CHU Evry,VSL,Consultation,Ascenseur HS
+AMB-1002,2026-08-04 11:00,urgente,Martin,Jean,Domicile 12 rue Victor Hugo,Hopital Sud,AMB,Urgence dialyse,
+AMB-1003,2026-08-05 14:15,programmee,Bernard,Lucie,EHPAD Les Lilas,Imagerie IRM,VSL,IRM,
