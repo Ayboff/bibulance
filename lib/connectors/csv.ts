@@ -59,6 +59,8 @@ export function parseCsvMissions(
     skip_empty_lines: true,
     trim: true,
     bom: true,
+    // Allow docs/sample-missions.csv header comments (# …)
+    comment: "#",
   }) as Record<string, string>[];
 
   const missions: CanonicalMission[] = [];

@@ -23,10 +23,10 @@ Cocher dans l’ordre. Ne passer en DNS prod qu’après la section **Go-live**.
 - [x] `GET https://bibulance.vercel.app/api/health` → 200
 - [x] `GET https://bibulance.vercel.app/api/health?db=1` → `database: ok` (fixé 2026-08-12 via migration `service_role_grants`, confirmé 2026-10-12)
 - [x] Créer 1 compte **société** + `create_company` sur onboarding (2026-10-12 — `Ambulances Cutover Test` / `cutover.societe.bibulance@example.com`)
-- [ ] Créer 1 compte **particulier** + mission test
-- [ ] Vérifier mission visible dashboard pro + Realtime PEC
-- [ ] Import CSV `docs/sample-missions.csv` OK
-- [ ] Cron manuel avec Bearer secret OK
+- [x] Créer 1 compte **particulier** + mission test (`cutover.patient.bibulance@example.com` → mission 13/10)
+- [x] Vérifier mission visible dashboard pro + PEC (acceptée + PEC 16:30 enregistrée)
+- [x] Import CSV OK (3 missions AMB-1001/1002/1003)
+- [ ] Cron manuel avec Bearer secret OK *(attendre CRON_SECRET local)*
 - [x] Headers sécurité présents (`X-Frame-Options: DENY`, HSTS)
 
 ### Smoke tests automatisés (dernière vérif : 2026-10-12)
