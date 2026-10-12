@@ -10,11 +10,11 @@ export default function RegisterPage() {
         <div className="animate-brand-fade-up space-y-4">
           <Logo variant="full" priority />
           <div className="space-y-2">
-            <h1 className="text-3xl font-bold tracking-tight text-ink">
+            <h1 className="text-3xl font-semibold tracking-tight text-ink">
               Créer un compte
             </h1>
             <p className="text-muted">
-              Particulier (commande de transport) ou société d’ambulances.
+              Choisissez particulier pour commander, ou société pour réguler.
             </p>
           </div>
         </div>

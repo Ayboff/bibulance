@@ -20,12 +20,12 @@ export default async function ProOnboardingPage() {
         <div className="space-y-4">
           <Logo variant="full" priority />
           <div className="space-y-2">
-            <h1 className="text-3xl font-bold tracking-tight text-ink">
-              Configurer votre société
+            <h1 className="text-3xl font-semibold tracking-tight text-ink">
+              Bienvenue — créez votre société
             </h1>
             <p className="text-muted">
-              Connecté en tant que {session.email}. Créez votre société Bibulance
-              ou acceptez une invitation.
+              Connecté : {session.email}. Indiquez le nom de votre société
+              d’ambulances, ou collez un code d’invitation.
             </p>
           </div>
         </div>

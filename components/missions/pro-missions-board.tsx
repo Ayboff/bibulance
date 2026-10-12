@@ -200,15 +200,15 @@ export function ProMissionsBoard({
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
-        <Kpi label="Du jour" value={kpis.ofDay} />
-        <Kpi label="Entrantes" value={kpis.incoming} accent />
-        <Kpi label="Attente plateforme" value={kpis.pendingPlatform} />
+        <Kpi label="Aujourd’hui" value={kpis.ofDay} />
+        <Kpi label="Nouvelles" value={kpis.incoming} accent />
+        <Kpi label="En attente" value={kpis.pendingPlatform} />
         <Kpi
           label="Confirmées"
           value={kpis.confirmed}
           href="/pro/confirmed"
         />
-        <Kpi label="Bibulance web" value={kpis.bibulanceWeb} />
+        <Kpi label="Particuliers" value={kpis.bibulanceWeb} />
         <Kpi label="Affectées" value={kpis.assigned} />
       </div>
 
@@ -573,14 +573,14 @@ function Kpi({
 }) {
   const content = (
     <div
-      className={`rounded-2xl border border-border bg-card px-4 py-3 shadow-[0_8px_24px_-18px_rgb(11_16_32_/_0.25)] ${
-        accent ? "border-ring/40 bg-accent-soft" : ""
+      className={`rounded-xl border border-border bg-card px-4 py-3 ${
+        accent ? "border-ring/30 bg-accent-soft" : ""
       }`}
     >
-      <p className="text-xs font-bold uppercase tracking-wide text-muted">
+      <p className="text-xs font-semibold uppercase tracking-wide text-muted">
         {label}
       </p>
-      <p className="mt-1 text-2xl font-bold tabular-nums text-ink">{value}</p>
+      <p className="mt-1 text-2xl font-semibold tabular-nums text-ink">{value}</p>
     </div>
   );
   if (href) {

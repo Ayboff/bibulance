@@ -8,13 +8,19 @@ type LogoProps = {
   href?: string | null;
   className?: string;
   priority?: boolean;
-  /** Show logo without the dark brand plate (for already-dark surfaces) */
-  bare?: boolean;
+  size?: "sm" | "md" | "lg";
 };
 
-const SIZES = {
-  full: { width: 200, height: 48, className: "h-8 w-auto sm:h-9" },
-  mark: { width: 44, height: 44, className: "h-8 w-8 sm:h-9 sm:w-9" },
+const FULL = {
+  sm: { width: 140, height: 36, className: "h-7 w-auto" },
+  md: { width: 168, height: 42, className: "h-8 w-auto sm:h-9" },
+  lg: { width: 196, height: 50, className: "h-10 w-auto" },
+} as const;
+
+const MARK = {
+  sm: { width: 28, height: 28, className: "h-7 w-7" },
+  md: { width: 36, height: 36, className: "h-9 w-9" },
+  lg: { width: 44, height: 44, className: "h-11 w-11" },
 } as const;
 
 export function Logo({
@@ -22,36 +28,30 @@ export function Logo({
   href = "/",
   className,
   priority,
-  bare,
+  size = "md",
 }: LogoProps) {
-  const size = SIZES[variant];
-  const src = variant === "full" ? "/logo-bibulance.png" : "/logo-b.png";
+  const dims = variant === "full" ? FULL[size] : MARK[size];
+  const src = variant === "full" ? "/logo-full.svg" : "/logo-mark.svg";
 
   const content = (
-    <span
-      className={cn(
-        "inline-flex items-center",
-        !bare && "rounded-xl bg-ink px-2.5 py-1.5 shadow-sm",
-        className,
-      )}
-    >
-      <Image
-        src={src}
-        alt="Bibulance"
-        width={size.width}
-        height={size.height}
-        priority={priority}
-        className={cn(size.className, "object-contain object-left")}
-      />
-    </span>
+    <Image
+      src={src}
+      alt="Bibulance"
+      width={dims.width}
+      height={dims.height}
+      priority={priority}
+      className={cn(dims.className, "object-contain object-left", className)}
+    />
   );
 
-  if (href === null) return content;
+  if (href === null) {
+    return <span className="inline-flex items-center">{content}</span>;
+  }
 
   return (
     <Link
       href={href}
-      className="inline-flex shrink-0 items-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+      className="inline-flex shrink-0 items-center rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
       aria-label="Bibulance — accueil"
     >
       {content}

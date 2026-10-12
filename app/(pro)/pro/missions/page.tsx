@@ -20,9 +20,10 @@ export default async function ProMissionsPage() {
   return (
     <section className="space-y-4">
       <div>
-        <h1 className="text-2xl font-semibold">Missions</h1>
+        <h1 className="text-2xl font-semibold text-ink">Missions du jour</h1>
         <p className="text-muted">
-          File du jour, filtres, actions régulateur et PEC — realtime actif.
+          Toutes les demandes (particuliers et plateformes). Acceptez, ajustez
+          la PEC, puis affectez.
         </p>
       </div>
       <ProMissionsBoard

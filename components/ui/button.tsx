@@ -14,12 +14,11 @@ export function Button({
   ...props
 }: ButtonProps) {
   const variants: Record<NonNullable<ButtonProps["variant"]>, string> = {
-    primary:
-      "bg-accent text-accent-foreground shadow-[0_8px_24px_-12px_rgb(46_196_214_/_0.75)] hover:brightness-105",
+    primary: "bg-accent text-accent-foreground hover:bg-[#367f91]",
     secondary:
       "border border-border bg-card text-foreground hover:bg-accent-soft",
     ghost: "text-foreground hover:bg-accent-soft",
-    danger: "bg-danger text-danger-foreground hover:brightness-105",
+    danger: "bg-danger text-danger-foreground hover:brightness-95",
   };
 
   return (

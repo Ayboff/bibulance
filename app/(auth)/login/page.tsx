@@ -19,22 +19,21 @@ export default async function LoginPage({
         <div className="animate-brand-fade-up space-y-4">
           <Logo variant="full" priority />
           <div className="space-y-2">
-            <h1 className="text-3xl font-bold tracking-tight text-ink">
+            <h1 className="text-3xl font-semibold tracking-tight text-ink">
               Connexion
             </h1>
             <p className="text-muted">
-              Accédez à l’espace société ou à votre espace particulier.
+              Régulateurs, chauffeurs et particuliers — un seul accès.
             </p>
           </div>
         </div>
 
         <div className="animate-brand-fade-up-delay brand-card space-y-4 p-6">
           {params.error ? (
-            <p className="rounded-xl border border-danger/35 bg-[#fff1f3] px-4 py-3 text-sm font-medium text-[#b4233a]">
-              La connexion a échoué. Réessayez.
+            <p className="rounded-xl border border-danger/30 bg-[#fdf2f4] px-4 py-3 text-sm font-medium text-[#8f3d4a]">
+              La connexion a échoué. Vérifiez email et mot de passe.
             </p>
           ) : null}
-
           <LoginForm next={next} />
         </div>
 

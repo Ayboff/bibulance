@@ -24,9 +24,9 @@ export default async function ProConfirmedPage() {
   return (
     <section className="space-y-4">
       <div>
-        <h1 className="text-2xl font-semibold">Missions confirmées</h1>
+        <h1 className="text-2xl font-semibold text-ink">Planning confirmé</h1>
         <p className="text-muted">
-          Acceptées plateforme, groupées par date. Realtime actif.
+          Missions validées, regroupées par date pour le suivi.
         </p>
       </div>
       <ConfirmedMissionsBoard

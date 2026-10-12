@@ -19,13 +19,9 @@ export default function PatientLayout({
 
       <header className="border-b-2 border-[var(--border)] bg-[var(--card)] px-4 py-3">
         <div className="mx-auto flex max-w-lg items-center justify-between gap-3">
-          <Logo
-            variant="full"
-            href="/commander"
-            className="!rounded-lg !px-2 !py-1"
-          />
-          <p className="text-sm font-bold text-[var(--muted)]">
-            Espace particulier
+          <Logo variant="full" href="/commander" size="sm" />
+          <p className="text-sm font-semibold text-[var(--muted)]">
+            Espace patient
           </p>
         </div>
       </header>
