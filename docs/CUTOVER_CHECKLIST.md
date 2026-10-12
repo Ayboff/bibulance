@@ -26,7 +26,7 @@ Cocher dans l’ordre. Ne passer en DNS prod qu’après la section **Go-live**.
 - [x] Créer 1 compte **particulier** + mission test (`cutover.patient.bibulance@example.com` → mission 13/10)
 - [x] Vérifier mission visible dashboard pro + PEC (acceptée + PEC 16:30 enregistrée)
 - [x] Import CSV OK (3 missions AMB-1001/1002/1003)
-- [ ] Cron manuel avec Bearer secret OK *(attendre CRON_SECRET local)*
+- [x] Cron manuel avec Bearer secret OK (2026-10-12 — `synced=0`, auth Bearer OK)
 - [x] Headers sécurité présents (`X-Frame-Options: DENY`, HSTS)
 
 ### Smoke tests automatisés (dernière vérif : 2026-10-12)
