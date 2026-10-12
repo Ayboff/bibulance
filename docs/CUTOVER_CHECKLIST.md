@@ -22,7 +22,7 @@ Cocher dans l’ordre. Ne passer en DNS prod qu’après la section **Go-live**.
 - [x] Premier deploy Production réussi (URL `*.vercel.app`)
 - [x] `GET https://bibulance.vercel.app/api/health` → 200
 - [x] `GET https://bibulance.vercel.app/api/health?db=1` → `database: ok` (fixé 2026-08-12 via migration `service_role_grants`, confirmé 2026-10-12)
-- [ ] Créer 1 compte **société** + `create_company` sur onboarding
+- [x] Créer 1 compte **société** + `create_company` sur onboarding (2026-10-12 — `Ambulances Cutover Test` / `cutover.societe.bibulance@example.com`)
 - [ ] Créer 1 compte **particulier** + mission test
 - [ ] Vérifier mission visible dashboard pro + Realtime PEC
 - [ ] Import CSV `docs/sample-missions.csv` OK
