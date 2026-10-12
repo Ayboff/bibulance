@@ -1,15 +1,16 @@
-/* Patient surface — high contrast, large type (elderly / low vision) */
+/* Patient surface — high contrast, large type (elderly / low vision) + Bibulance brand */
 .patient-app {
   --background: #ffffff;
-  --foreground: #0a0a0a;
+  --foreground: #0b1020;
   --card: #ffffff;
-  --muted: #1e293b;
-  --accent: #0f766e;
-  --accent-foreground: #ffffff;
-  --border: #0f172a;
-  --danger: #991b1b;
+  --muted: #334155;
+  --accent: #5bf2f7;
+  --accent-foreground: #0b1020;
+  --border: #0b1020;
+  --danger: #b4233a;
   --success: #166534;
-  --patient-focus: #0f766e;
+  --patient-focus: #2ec4d6;
+  --mint: #63ffa9;
   color: var(--foreground);
   background: var(--background);
   font-size: 1.125rem;
@@ -44,14 +45,14 @@
   min-width: 48px;
   font-size: 1.125rem;
   font-weight: 700;
-  border-radius: 0.75rem;
+  border-radius: 0.85rem;
   padding-inline: 1.25rem;
 }
 
 .patient-app .patient-btn-primary {
   background: var(--accent);
   color: var(--accent-foreground);
-  border: 2px solid var(--accent);
+  border: 2px solid #2ec4d6;
 }
 
 .patient-app .patient-btn-secondary {
@@ -64,7 +65,7 @@
   min-height: 52px;
   width: 100%;
   border: 2px solid var(--border);
-  border-radius: 0.75rem;
+  border-radius: 0.85rem;
   padding: 0.75rem 1rem;
   font-size: 1.125rem;
   background: #fff;
@@ -84,7 +85,7 @@
   width: 100%;
   text-align: left;
   border: 2px solid var(--border);
-  border-radius: 0.75rem;
+  border-radius: 0.85rem;
   padding: 1rem 1.25rem;
   font-size: 1.125rem;
   font-weight: 700;
@@ -93,9 +94,9 @@
 
 .patient-app .patient-choice[aria-pressed="true"],
 .patient-app .patient-choice[data-selected="true"] {
-  border-color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 12%, white);
-  box-shadow: inset 0 0 0 1px var(--accent);
+  border-color: #2ec4d6;
+  background: #ecfeff;
+  box-shadow: inset 0 0 0 1px #2ec4d6;
 }
 
 .patient-app .patient-card {

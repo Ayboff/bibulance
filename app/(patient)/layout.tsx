@@ -1,5 +1,4 @@
-import Link from "next/link";
-
+import { Logo } from "@/components/brand/logo";
 import { PatientNav } from "@/components/patient/patient-nav";
 
 import "./patient.css";
@@ -18,16 +17,16 @@ export default function PatientLayout({
         Aller au contenu principal
       </a>
 
-      <header className="border-b-2 border-[var(--border)] bg-[var(--card)] px-4 py-4">
+      <header className="border-b-2 border-[var(--border)] bg-[var(--card)] px-4 py-3">
         <div className="mx-auto flex max-w-lg items-center justify-between gap-3">
-          <Link
+          <Logo
+            variant="full"
             href="/commander"
-            className="text-xl font-bold text-[var(--accent)]"
-            aria-label="Bibulance, accueil commande"
-          >
-            Bibulance
-          </Link>
-          <p className="text-sm font-semibold text-[var(--muted)]">Espace particulier</p>
+            className="!rounded-lg !px-2 !py-1"
+          />
+          <p className="text-sm font-bold text-[var(--muted)]">
+            Espace particulier
+          </p>
         </div>
       </header>
 

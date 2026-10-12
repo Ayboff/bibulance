@@ -26,10 +26,10 @@ export function ProNav({ className }: { className?: string }) {
             key={item.href}
             href={item.href}
             className={cn(
-              "rounded-md px-3 py-3 text-base font-medium",
+              "rounded-xl px-3 py-3 text-base font-medium transition",
               active
-                ? "bg-accent/15 font-semibold text-accent"
-                : "text-foreground hover:bg-background",
+                ? "bg-accent-soft font-bold text-ink ring-1 ring-ring/25"
+                : "text-muted hover:bg-background hover:text-ink",
             )}
             aria-current={active ? "page" : undefined}
           >
@@ -54,10 +54,10 @@ export function ProMobileNav() {
             key={item.href}
             href={item.href}
             className={cn(
-              "shrink-0 rounded-md px-3 py-2 text-sm font-semibold",
+              "shrink-0 rounded-xl px-3 py-2.5 text-sm font-semibold transition",
               active
                 ? "bg-accent text-accent-foreground"
-                : "bg-background text-foreground",
+                : "bg-background text-muted",
             )}
           >
             {item.label}

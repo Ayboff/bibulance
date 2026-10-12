@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useActionState } from "react";
 
 import { signInWithPassword, type AuthActionState } from "@/lib/auth/actions";
@@ -47,13 +46,6 @@ export function LoginForm({ next = "/" }: { next?: string }) {
       <Button type="submit" className="w-full" loading={pending}>
         Se connecter
       </Button>
-
-      <p className="text-center text-sm text-muted">
-        Pas encore de compte ?{" "}
-        <Link href="/register" className="font-semibold text-accent underline">
-          Créer un compte
-        </Link>
-      </p>
     </form>
   );
 }

@@ -1,15 +1,24 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f7f8fa;
-  --foreground: #0f172a;
+  /* Bibulance brand — from official logo (mint → cyan) */
+  --background: #f4fbfc;
+  --foreground: #0b1020;
   --card: #ffffff;
-  --muted: #64748b;
-  --accent: #0e7490;
-  --accent-foreground: #ffffff;
-  --border: #e2e8f0;
-  --danger: #b91c1c;
+  --muted: #5b6578;
+  --accent: #5bf2f7;
+  --accent-foreground: #0b1020;
+  --accent-soft: #ecfeff;
+  --mint: #63ffa9;
+  --mint-soft: #e9fff4;
+  --ink: #0b1020;
+  --border: #d7e4ea;
+  --danger: #ff5e79;
+  --danger-foreground: #ffffff;
   --success: #15803d;
+  --violet: #c07eff;
+  --ring: #2ec4d6;
+  --shadow-soft: 0 10px 40px -18px rgb(11 16 32 / 0.18);
 }
 
 @theme inline {
@@ -19,10 +28,17 @@
   --color-muted: var(--muted);
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
+  --color-accent-soft: var(--accent-soft);
+  --color-mint: var(--mint);
+  --color-mint-soft: var(--mint-soft);
+  --color-ink: var(--ink);
   --color-border: var(--border);
   --color-danger: var(--danger);
+  --color-danger-foreground: var(--danger-foreground);
   --color-success: var(--success);
-  --font-sans: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --color-violet: var(--violet);
+  --color-ring: var(--ring);
+  --font-sans: var(--font-jakarta), "Segoe UI", "Helvetica Neue", Arial, sans-serif;
   --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
 }
 
@@ -32,9 +48,47 @@ body {
   font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
 }
 
-/* Large touch targets */
+/* Large touch targets — regulators on phones */
 button,
 a[role="button"],
 .btn {
   min-height: 48px;
+}
+
+/* Subtle brand atmosphere (landing / auth shells) */
+.brand-surface {
+  background:
+    radial-gradient(1200px 500px at 10% -10%, rgb(99 255 169 / 0.28), transparent 55%),
+    radial-gradient(900px 420px at 95% 0%, rgb(91 242 247 / 0.35), transparent 50%),
+    linear-gradient(180deg, #ecfeff 0%, #f4fbfc 42%, #ffffff 100%);
+}
+
+.brand-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 1.25rem;
+  box-shadow: var(--shadow-soft);
+}
+
+@keyframes brand-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-brand-fade-up {
+  animation: brand-fade-up 0.55s ease-out both;
+}
+
+.animate-brand-fade-up-delay {
+  animation: brand-fade-up 0.65s ease-out 0.08s both;
+}
+
+.animate-brand-fade-up-delay-2 {
+  animation: brand-fade-up 0.7s ease-out 0.16s both;
 }

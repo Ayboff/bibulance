@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useActionState, useState } from "react";
 
 import { signUp, type AuthActionState } from "@/lib/auth/actions";
@@ -28,10 +27,10 @@ export function RegisterForm() {
           <button
             type="button"
             onClick={() => setIntent("patient")}
-            className={`min-h-11 rounded-lg border px-3 text-sm font-semibold ${
+            className={`min-h-12 rounded-xl border px-3 text-sm font-semibold transition ${
               intent === "patient"
-                ? "border-accent bg-accent/10 text-accent"
-                : "border-border bg-card"
+                ? "border-ring bg-accent-soft text-ink shadow-sm"
+                : "border-border bg-card text-muted hover:bg-background"
             }`}
           >
             Particulier
@@ -39,10 +38,10 @@ export function RegisterForm() {
           <button
             type="button"
             onClick={() => setIntent("company")}
-            className={`min-h-11 rounded-lg border px-3 text-sm font-semibold ${
+            className={`min-h-12 rounded-xl border px-3 text-sm font-semibold transition ${
               intent === "company"
-                ? "border-accent bg-accent/10 text-accent"
-                : "border-border bg-card"
+                ? "border-ring bg-accent-soft text-ink shadow-sm"
+                : "border-border bg-card text-muted hover:bg-background"
             }`}
           >
             Société d’ambulances
@@ -81,13 +80,6 @@ export function RegisterForm() {
       <Button type="submit" className="w-full" loading={pending}>
         Créer mon compte
       </Button>
-
-      <p className="text-center text-sm text-muted">
-        Déjà inscrit ?{" "}
-        <Link href="/login" className="font-semibold text-accent underline">
-          Se connecter
-        </Link>
-      </p>
     </form>
   );
 }
