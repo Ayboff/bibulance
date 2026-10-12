@@ -17,6 +17,8 @@ export async function GET(request: Request) {
     connector_key: process.env.CONNECTOR_ENCRYPTION_KEY ? "ok" : "missing",
   };
 
+  let databaseHint: string | undefined;
+
   if (wantDb) {
     if (checks.service_role !== "ok") {
       checks.database = "missing";
@@ -25,9 +27,17 @@ export async function GET(request: Request) {
         const { createAdminClient } = await import("@/lib/supabase/admin");
         const admin = createAdminClient();
         const { error } = await admin.from("companies").select("id").limit(1);
-        checks.database = error ? "error" : "ok";
-      } catch {
+        if (error) {
+          checks.database = "error";
+          // Safe ops hint — no secrets, helps cutover (wrong key, missing migrations, etc.)
+          databaseHint = [error.code, error.message].filter(Boolean).join(": ");
+        } else {
+          checks.database = "ok";
+        }
+      } catch (err) {
         checks.database = "error";
+        databaseHint =
+          err instanceof Error ? err.message.slice(0, 120) : "admin client failed";
       }
     }
   }
@@ -44,6 +54,7 @@ export async function GET(request: Request) {
       service: "bibulance",
       time: new Date().toISOString(),
       checks,
+      ...(databaseHint ? { database_hint: databaseHint } : {}),
     },
     { status: ready ? 200 : 503 },
   );

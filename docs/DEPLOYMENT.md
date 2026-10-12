@@ -137,6 +137,15 @@ Configurer le secret dans `/pro/connectors`.
 
 ## 6. Smoke tests post-deploy
 
+Script automatisé (sans session) :
+
+```bash
+node scripts/smoke-production.mjs https://bibulance.vercel.app
+CRON_SECRET=... node scripts/smoke-production.mjs https://bibulance.vercel.app
+```
+
+Checks manuels (session requise) :
+
 1. `GET /api/health` → `ok: true`
 2. `GET /api/health?db=1` → `database: ok`
 3. Inscription particulier → `/commander` wizard

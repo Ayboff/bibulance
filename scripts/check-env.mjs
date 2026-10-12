@@ -16,14 +16,30 @@ const required = [
 
 const optional = ["SENTRY_DSN"];
 
+const placeholders = [
+  ["NEXT_PUBLIC_SUPABASE_URL", /YOUR_PROJECT|your_project/i],
+  ["NEXT_PUBLIC_SUPABASE_ANON_KEY", /^your_anon_key$/i],
+  ["SUPABASE_SERVICE_ROLE_KEY", /^your_service_role_key$/i],
+];
+
 let missing = 0;
+let placeholderHits = 0;
 
 console.log("Bibulance env check\n");
 
 for (const key of required) {
-  const ok = Boolean(process.env[key] && String(process.env[key]).trim());
+  const raw = process.env[key];
+  const ok = Boolean(raw && String(raw).trim());
   console.log(`${ok ? "OK " : "MISSING "} ${key}`);
   if (!ok) missing += 1;
+}
+
+for (const [key, pattern] of placeholders) {
+  const raw = process.env[key];
+  if (raw && pattern.test(String(raw).trim())) {
+    console.log(`WARN  ${key} looks like a placeholder — replace with prod/staging values`);
+    placeholderHits += 1;
+  }
 }
 
 for (const key of optional) {
@@ -33,6 +49,11 @@ for (const key of optional) {
 
 if (missing > 0) {
   console.error(`\n${missing} required variable(s) missing.`);
+  process.exit(1);
+}
+
+if (placeholderHits > 0) {
+  console.error(`\n${placeholderHits} placeholder value(s) detected.`);
   process.exit(1);
 }
 

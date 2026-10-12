@@ -18,16 +18,38 @@ Cocher dans l’ordre. Ne passer en DNS prod qu’après la section **Go-live**.
 
 ## B. Déploiement shadow (sans DNS public)
 
-- [ ] Projet Vercel lié au repo, branche `main`
-- [ ] Premier deploy Production réussi (URL `*.vercel.app`)
-- [ ] `GET https://<preview>/api/health` → 200
-- [ ] `GET https://<preview>/api/health?db=1` → `database: ok`
+- [x] Projet Vercel lié au repo, branche `main`
+- [x] Premier deploy Production réussi (URL `*.vercel.app`)
+- [x] `GET https://bibulance.vercel.app/api/health` → 200
+- [x] `GET https://bibulance.vercel.app/api/health?db=1` → `database: ok` (fixé 2026-08-12 via migration `service_role_grants`, confirmé 2026-10-12)
 - [ ] Créer 1 compte **société** + `create_company` sur onboarding
 - [ ] Créer 1 compte **particulier** + mission test
 - [ ] Vérifier mission visible dashboard pro + Realtime PEC
 - [ ] Import CSV `docs/sample-missions.csv` OK
 - [ ] Cron manuel avec Bearer secret OK
-- [ ] Headers sécurité présents (`X-Frame-Options: DENY`, HSTS)
+- [x] Headers sécurité présents (`X-Frame-Options: DENY`, HSTS)
+
+### Smoke tests automatisés (dernière vérif : 2026-10-12)
+
+```bash
+node scripts/smoke-production.mjs https://bibulance.vercel.app
+# Cron (local, avec secret Vercel) :
+CRON_SECRET=... node scripts/smoke-production.mjs https://bibulance.vercel.app
+```
+
+| Test | Résultat |
+|------|----------|
+| Health liveness | PASS |
+| Health DB (`?db=1`) | **PASS** |
+| Pages `/`, `/login`, `/register` | PASS (à reconfirmer après push) |
+| Redirections auth (`/commander`, `/pro/missions`) | PASS |
+| API missions sans session | PASS (401) |
+| Cron sans Bearer | PASS (401) |
+
+### Correctif appliqué (`database: error` → OK)
+
+Cause : `service_role` n’avait plus les GRANT sur les tables après Phase 1.  
+Fix : migration `20260812160000_service_role_grants.sql` poussée sur le projet `rdbvwattegnsyzfdrkfa`.
 
 ## C. Migration données (si reprise MVP)
 
@@ -66,9 +88,9 @@ Cocher dans l’ordre. Ne passer en DNS prod qu’après la section **Go-live**.
 
 | Item | Valeur |
 |------|--------|
-| App prod | `https://` |
-| Supabase project ref | |
-| Vercel project | |
+| App prod (shadow) | `https://bibulance.vercel.app` |
+| Supabase project ref | *(à compléter)* |
+| Vercel project | `bibulance` |
 | Cron path | `/api/cron/sync-all` |
 | Health | `/api/health` |
 | Webhook pattern | `/api/webhooks/connectors/:platform` |
