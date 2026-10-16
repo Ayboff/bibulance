@@ -9,6 +9,13 @@ export type MissionBookingMeta = {
   broadcast_id: string | null;
   series_id: string | null;
   phone: string | null;
+  ordered_for_someone: boolean;
+  relative_firstname: string | null;
+  relative_lastname: string | null;
+  relative_relation: string | null;
+  relative_phone: string | null;
+  patient_birthdate: string | null;
+  patient_social_security: string | null;
 };
 
 function asRecord(value: Json | null | undefined): Record<string, unknown> {
@@ -16,6 +23,10 @@ function asRecord(value: Json | null | undefined): Record<string, unknown> {
     return value as Record<string, unknown>;
   }
   return {};
+}
+
+function asString(value: unknown): string | null {
+  return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
 export function getMissionBookingMeta(
@@ -31,10 +42,16 @@ export function getMissionBookingMeta(
   return {
     dispatch_mode: dispatch,
     booking_mode: booking,
-    broadcast_id:
-      typeof p.broadcast_id === "string" ? p.broadcast_id : null,
-    series_id: typeof p.series_id === "string" ? p.series_id : null,
-    phone: typeof p.phone === "string" ? p.phone : null,
+    broadcast_id: asString(p.broadcast_id),
+    series_id: asString(p.series_id),
+    phone: asString(p.phone),
+    ordered_for_someone: p.ordered_for_someone === true,
+    relative_firstname: asString(p.relative_firstname),
+    relative_lastname: asString(p.relative_lastname),
+    relative_relation: asString(p.relative_relation),
+    relative_phone: asString(p.relative_phone),
+    patient_birthdate: asString(p.patient_birthdate),
+    patient_social_security: asString(p.patient_social_security),
   };
 }
 

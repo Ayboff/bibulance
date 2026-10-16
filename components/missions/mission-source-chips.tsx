@@ -24,6 +24,9 @@ export function MissionSourceChips({
       {meta.booking_mode === "iterative" || meta.series_id ? (
         <Chip tone="mint">Itératif</Chip>
       ) : null}
+      {meta.ordered_for_someone ? (
+        <Chip tone="accent">Pour un proche</Chip>
+      ) : null}
       {mission.trip_type === "aller_retour" ? (
         <Chip tone="neutral">A/R</Chip>
       ) : null}

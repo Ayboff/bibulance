@@ -31,9 +31,18 @@ type Draft = {
   date: string;
   time: string;
   trip_type: "aller" | "aller_retour";
+  ordered_for_someone: boolean;
+  /** Patient transporté */
   firstname: string;
   lastname: string;
   phone: string;
+  patient_birthdate: string;
+  patient_social_security: string;
+  /** Demandeur (si proche) */
+  relative_firstname: string;
+  relative_lastname: string;
+  relative_relation: string;
+  relative_phone: string;
   transport_type: "VSL" | "AMB";
   days: Record<DayKey, DaySlot>;
   end_date: string;
@@ -74,7 +83,7 @@ const STEP_TITLES: Record<Step, string> = {
   depart: "Adresse de départ",
   arrive: "Adresse d’arrivée",
   when: "Quand ?",
-  patient: "Vos informations",
+  patient: "Je commande pour…",
   vehicle: "Véhicule et besoins",
   confirm: "Vérifier et envoyer",
 };
@@ -85,7 +94,7 @@ const STEP_HINTS: Record<Step, string> = {
   depart: "Où faut-il venir vous prendre ?",
   arrive: "Où devez-vous aller ?",
   when: "Indiquez la date et l’heure du rendez-vous.",
-  patient: "Pour qui est ce transport ?",
+  patient: "Pour vous, ou pour un proche (parents, grands-parents…).",
   vehicle: "Quel véhicule, et avez-vous des besoins particuliers ?",
   confirm: "Relisez bien avant d’envoyer.",
 };
@@ -150,9 +159,16 @@ export function BookingWizard({
     date: today,
     time: defaultTime,
     trip_type: "aller",
+    ordered_for_someone: false,
     firstname: defaultName?.first ?? "",
     lastname: defaultName?.last ?? "",
     phone: "",
+    patient_birthdate: "",
+    patient_social_security: "",
+    relative_firstname: defaultName?.first ?? "",
+    relative_lastname: defaultName?.last ?? "",
+    relative_relation: "",
+    relative_phone: "",
     transport_type: "VSL",
     days: defaultDays(defaultTime),
     end_date: "",
@@ -163,6 +179,9 @@ export function BookingWizard({
       oxygene: false,
     },
   });
+
+  const selfFirst = defaultName?.first ?? "";
+  const selfLast = defaultName?.last ?? "";
 
   const steps = STEPS;
   const step = steps[stepIndex] ?? "confirm";
@@ -231,6 +250,27 @@ export function BookingWizard({
         }
         return null;
       case "patient":
+        if (draft.ordered_for_someone) {
+          if (draft.relative_firstname.trim().length < 1) {
+            return "Indiquez votre prénom (demandeur).";
+          }
+          if (draft.relative_lastname.trim().length < 1) {
+            return "Indiquez votre nom (demandeur).";
+          }
+          if (draft.relative_phone.trim().length < 6) {
+            return "Indiquez votre téléphone (demandeur).";
+          }
+          if (draft.firstname.trim().length < 1) {
+            return "Indiquez le prénom du patient transporté.";
+          }
+          if (draft.lastname.trim().length < 1) {
+            return "Indiquez le nom du patient transporté.";
+          }
+          if (!draft.patient_birthdate) {
+            return "Indiquez la date de naissance du patient.";
+          }
+          return null;
+        }
         if (draft.firstname.trim().length < 1) return "Indiquez le prénom.";
         if (draft.lastname.trim().length < 1) return "Indiquez le nom.";
         return null;
@@ -280,6 +320,22 @@ export function BookingWizard({
           firstname: draft.firstname.trim(),
           lastname: draft.lastname.trim(),
           phone: draft.phone.trim() || undefined,
+          patient_birthdate: draft.patient_birthdate || undefined,
+          patient_social_security:
+            draft.patient_social_security.trim() || undefined,
+          ordered_for_someone: draft.ordered_for_someone,
+          relative_firstname: draft.ordered_for_someone
+            ? draft.relative_firstname.trim()
+            : undefined,
+          relative_lastname: draft.ordered_for_someone
+            ? draft.relative_lastname.trim()
+            : undefined,
+          relative_relation: draft.ordered_for_someone
+            ? draft.relative_relation.trim() || undefined
+            : undefined,
+          relative_phone: draft.ordered_for_someone
+            ? draft.relative_phone.trim()
+            : undefined,
           depart_address: draft.depart_address.trim(),
           arrival_address: draft.arrival_address.trim(),
           date: draft.booking_mode === "once" ? draft.date : undefined,
@@ -647,47 +703,309 @@ export function BookingWizard({
         ) : null}
 
         {step === "patient" ? (
-          <div className="space-y-4">
-            <div>
-              <label className="patient-label" htmlFor={`${formId}-first`}>
-                Prénom
-              </label>
-              <input
-                id={`${formId}-first`}
-                className="patient-input"
-                value={draft.firstname}
-                onChange={(e) => update("firstname", e.target.value)}
-                autoComplete="given-name"
-                required
-              />
-            </div>
-            <div>
-              <label className="patient-label" htmlFor={`${formId}-last`}>
-                Nom
-              </label>
-              <input
-                id={`${formId}-last`}
-                className="patient-input"
-                value={draft.lastname}
-                onChange={(e) => update("lastname", e.target.value)}
-                autoComplete="family-name"
-                required
-              />
-            </div>
-            <div>
-              <label className="patient-label" htmlFor={`${formId}-phone`}>
-                Téléphone (recommandé)
-              </label>
-              <input
-                id={`${formId}-phone`}
-                className="patient-input"
-                type="tel"
-                value={draft.phone}
-                onChange={(e) => update("phone", e.target.value)}
-                autoComplete="tel"
-                inputMode="tel"
-              />
-            </div>
+          <div className="space-y-5">
+            <fieldset className="space-y-3">
+              <legend className="patient-label">Je commande pour…</legend>
+              <button
+                type="button"
+                className="patient-choice"
+                data-selected={!draft.ordered_for_someone}
+                aria-pressed={!draft.ordered_for_someone}
+                onClick={() => {
+                  setDraft((d) => ({
+                    ...d,
+                    ordered_for_someone: false,
+                    firstname: selfFirst || d.firstname,
+                    lastname: selfLast || d.lastname,
+                  }));
+                  setError(null);
+                }}
+              >
+                <span className="block">Moi-même</span>
+                <span className="mt-1 block text-base font-normal text-[var(--muted)]">
+                  Je suis le patient transporté
+                </span>
+              </button>
+              <button
+                type="button"
+                className="patient-choice"
+                data-selected={draft.ordered_for_someone}
+                aria-pressed={draft.ordered_for_someone}
+                onClick={() => {
+                  setDraft((d) => ({
+                    ...d,
+                    ordered_for_someone: true,
+                    relative_firstname:
+                      d.relative_firstname || selfFirst || d.firstname,
+                    relative_lastname:
+                      d.relative_lastname || selfLast || d.lastname,
+                    firstname:
+                      d.ordered_for_someone || d.firstname !== selfFirst
+                        ? d.firstname
+                        : "",
+                    lastname:
+                      d.ordered_for_someone || d.lastname !== selfLast
+                        ? d.lastname
+                        : "",
+                  }));
+                  setError(null);
+                }}
+              >
+                <span className="block">Pour un proche</span>
+                <span className="mt-1 block text-base font-normal text-[var(--muted)]">
+                  Parents, grands-parents, aidant… je commande pour quelqu’un
+                  d’autre
+                </span>
+              </button>
+            </fieldset>
+
+            {draft.ordered_for_someone ? (
+              <>
+                <div className="patient-card space-y-4">
+                  <p className="font-bold text-[var(--accent)]">
+                    Informations du demandeur
+                  </p>
+                  <div>
+                    <label
+                      className="patient-label"
+                      htmlFor={`${formId}-rel-first`}
+                    >
+                      Votre prénom
+                    </label>
+                    <input
+                      id={`${formId}-rel-first`}
+                      className="patient-input"
+                      value={draft.relative_firstname}
+                      onChange={(e) =>
+                        update("relative_firstname", e.target.value)
+                      }
+                      autoComplete="given-name"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label
+                      className="patient-label"
+                      htmlFor={`${formId}-rel-last`}
+                    >
+                      Votre nom
+                    </label>
+                    <input
+                      id={`${formId}-rel-last`}
+                      className="patient-input"
+                      value={draft.relative_lastname}
+                      onChange={(e) =>
+                        update("relative_lastname", e.target.value)
+                      }
+                      autoComplete="family-name"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label
+                      className="patient-label"
+                      htmlFor={`${formId}-rel-link`}
+                    >
+                      Lien avec le patient (ex. : fils, fille, aidant)
+                    </label>
+                    <input
+                      id={`${formId}-rel-link`}
+                      className="patient-input"
+                      value={draft.relative_relation}
+                      onChange={(e) =>
+                        update("relative_relation", e.target.value)
+                      }
+                      placeholder="Fils, fille, voisin…"
+                    />
+                  </div>
+                  <div>
+                    <label
+                      className="patient-label"
+                      htmlFor={`${formId}-rel-phone`}
+                    >
+                      Votre téléphone
+                    </label>
+                    <input
+                      id={`${formId}-rel-phone`}
+                      className="patient-input"
+                      type="tel"
+                      value={draft.relative_phone}
+                      onChange={(e) =>
+                        update("relative_phone", e.target.value)
+                      }
+                      autoComplete="tel"
+                      inputMode="tel"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="patient-card space-y-4">
+                  <p className="font-bold text-[var(--accent)]">
+                    Patient transporté
+                  </p>
+                  <div>
+                    <label
+                      className="patient-label"
+                      htmlFor={`${formId}-first`}
+                    >
+                      Prénom du patient
+                    </label>
+                    <input
+                      id={`${formId}-first`}
+                      className="patient-input"
+                      value={draft.firstname}
+                      onChange={(e) => update("firstname", e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="patient-label" htmlFor={`${formId}-last`}>
+                      Nom du patient
+                    </label>
+                    <input
+                      id={`${formId}-last`}
+                      className="patient-input"
+                      value={draft.lastname}
+                      onChange={(e) => update("lastname", e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label
+                      className="patient-label"
+                      htmlFor={`${formId}-birth`}
+                    >
+                      Date de naissance
+                    </label>
+                    <input
+                      id={`${formId}-birth`}
+                      className="patient-input"
+                      type="date"
+                      value={draft.patient_birthdate}
+                      onChange={(e) =>
+                        update("patient_birthdate", e.target.value)
+                      }
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label
+                      className="patient-label"
+                      htmlFor={`${formId}-nir`}
+                    >
+                      Numéro de sécurité sociale (optionnel)
+                    </label>
+                    <input
+                      id={`${formId}-nir`}
+                      className="patient-input"
+                      value={draft.patient_social_security}
+                      onChange={(e) =>
+                        update("patient_social_security", e.target.value)
+                      }
+                      inputMode="numeric"
+                      autoComplete="off"
+                      placeholder="15 chiffres"
+                    />
+                    <p className="mt-2 text-base text-[var(--muted)]">
+                      Vous pourrez le fournir plus tard si besoin.
+                    </p>
+                  </div>
+                  <div>
+                    <label
+                      className="patient-label"
+                      htmlFor={`${formId}-phone`}
+                    >
+                      Téléphone du patient (optionnel)
+                    </label>
+                    <input
+                      id={`${formId}-phone`}
+                      className="patient-input"
+                      type="tel"
+                      value={draft.phone}
+                      onChange={(e) => update("phone", e.target.value)}
+                      inputMode="tel"
+                    />
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="space-y-4">
+                <div>
+                  <label className="patient-label" htmlFor={`${formId}-first`}>
+                    Prénom
+                  </label>
+                  <input
+                    id={`${formId}-first`}
+                    className="patient-input"
+                    value={draft.firstname}
+                    onChange={(e) => update("firstname", e.target.value)}
+                    autoComplete="given-name"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="patient-label" htmlFor={`${formId}-last`}>
+                    Nom
+                  </label>
+                  <input
+                    id={`${formId}-last`}
+                    className="patient-input"
+                    value={draft.lastname}
+                    onChange={(e) => update("lastname", e.target.value)}
+                    autoComplete="family-name"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="patient-label" htmlFor={`${formId}-phone`}>
+                    Téléphone (recommandé)
+                  </label>
+                  <input
+                    id={`${formId}-phone`}
+                    className="patient-input"
+                    type="tel"
+                    value={draft.phone}
+                    onChange={(e) => update("phone", e.target.value)}
+                    autoComplete="tel"
+                    inputMode="tel"
+                  />
+                </div>
+                <div>
+                  <label className="patient-label" htmlFor={`${formId}-birth`}>
+                    Date de naissance (optionnel)
+                  </label>
+                  <input
+                    id={`${formId}-birth`}
+                    className="patient-input"
+                    type="date"
+                    value={draft.patient_birthdate}
+                    onChange={(e) =>
+                      update("patient_birthdate", e.target.value)
+                    }
+                  />
+                </div>
+                <div>
+                  <label className="patient-label" htmlFor={`${formId}-nir`}>
+                    Numéro de sécurité sociale (optionnel)
+                  </label>
+                  <input
+                    id={`${formId}-nir`}
+                    className="patient-input"
+                    value={draft.patient_social_security}
+                    onChange={(e) =>
+                      update("patient_social_security", e.target.value)
+                    }
+                    inputMode="numeric"
+                    autoComplete="off"
+                    placeholder="15 chiffres"
+                  />
+                  <p className="mt-2 text-base text-[var(--muted)]">
+                    Vous pourrez le fournir plus tard si besoin.
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
         ) : null}
 
@@ -774,12 +1092,62 @@ export function BookingWizard({
                 />
               ) : null}
               <ReviewRow
-                label="Passager"
-                value={`${draft.firstname} ${draft.lastname}`}
+                label="Commande"
+                value={
+                  draft.ordered_for_someone
+                    ? "Pour un proche"
+                    : "Pour moi-même"
+                }
               />
+              {draft.ordered_for_someone ? (
+                <>
+                  <ReviewRow
+                    label="Demandeur"
+                    value={`${draft.relative_firstname} ${draft.relative_lastname}${
+                      draft.relative_relation
+                        ? ` · ${draft.relative_relation}`
+                        : ""
+                    }`}
+                  />
+                  <ReviewRow
+                    label="Tél. demandeur"
+                    value={draft.relative_phone}
+                  />
+                  <ReviewRow
+                    label="Patient transporté"
+                    value={`${draft.firstname} ${draft.lastname}`}
+                  />
+                  {draft.patient_birthdate ? (
+                    <ReviewRow
+                      label="Date de naissance"
+                      value={formatDateFr(draft.patient_birthdate)}
+                    />
+                  ) : null}
+                </>
+              ) : (
+                <ReviewRow
+                  label="Passager"
+                  value={`${draft.firstname} ${draft.lastname}`}
+                />
+              )}
               {draft.phone ? (
-                <ReviewRow label="Téléphone" value={draft.phone} />
+                <ReviewRow
+                  label={
+                    draft.ordered_for_someone
+                      ? "Tél. patient"
+                      : "Téléphone"
+                  }
+                  value={draft.phone}
+                />
               ) : null}
+              {draft.patient_social_security.trim() ? (
+                <ReviewRow
+                  label="N° sécu."
+                  value={draft.patient_social_security.trim()}
+                />
+              ) : (
+                <ReviewRow label="N° sécu." value="Non renseigné" />
+              )}
               <ReviewRow
                 label="Véhicule"
                 value={

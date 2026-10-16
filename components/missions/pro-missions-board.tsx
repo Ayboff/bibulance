@@ -520,11 +520,7 @@ export function ProMissionsBoard({
                     sociétés voient la demande se fermer.
                   </p>
                 ) : null}
-                {getMissionBookingMeta(selected).phone ? (
-                  <p className="mt-2 text-sm font-medium">
-                    Tél. {getMissionBookingMeta(selected).phone}
-                  </p>
-                ) : null}
+                <BookingContactBlock mission={selected} />
               </div>
 
               <div className="flex flex-col gap-2">
@@ -677,4 +673,56 @@ function Kpi({
     );
   }
   return content;
+}
+
+function BookingContactBlock({ mission }: { mission: Mission }) {
+  const meta = getMissionBookingMeta(mission);
+
+  return (
+    <div className="mt-3 space-y-1.5 rounded-lg border border-border/80 bg-background/80 px-3 py-2.5 text-sm">
+      {meta.ordered_for_someone ? (
+        <>
+          <p className="text-xs font-bold uppercase tracking-wide text-accent">
+            Commandé pour un proche
+          </p>
+          <p className="font-medium text-ink">
+            Demandeur :{" "}
+            {[meta.relative_firstname, meta.relative_lastname]
+              .filter(Boolean)
+              .join(" ") || "—"}
+            {meta.relative_relation ? ` (${meta.relative_relation})` : ""}
+          </p>
+          {meta.relative_phone ? (
+            <p className="font-medium">Tél. demandeur : {meta.relative_phone}</p>
+          ) : null}
+          {meta.phone ? (
+            <p className="text-muted">Tél. patient : {meta.phone}</p>
+          ) : null}
+        </>
+      ) : meta.phone ? (
+        <p className="font-medium">Tél. {meta.phone}</p>
+      ) : null}
+      {meta.patient_birthdate ? (
+        <p className="text-muted">
+          Né(e) le{" "}
+          {(() => {
+            try {
+              return new Date(`${meta.patient_birthdate}T12:00:00`).toLocaleDateString(
+                "fr-FR",
+              );
+            } catch {
+              return meta.patient_birthdate;
+            }
+          })()}
+        </p>
+      ) : null}
+      {meta.patient_social_security ? (
+        <p className="font-medium tabular-nums">
+          N° sécu. {meta.patient_social_security}
+        </p>
+      ) : (
+        <p className="text-xs text-muted">N° sécu. non renseigné</p>
+      )}
+    </div>
+  );
 }

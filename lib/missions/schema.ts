@@ -53,7 +53,19 @@ export const createPatientMissionSchema = z
     reason: z.string().optional(),
     comment: z.string().optional(),
     trip_type: tripTypeSchema.default("aller"),
-    patient_birthdate: z.string().optional(),
+    patient_birthdate: z
+      .string()
+      .optional()
+      .refine(
+        (v) => !v || /^\d{4}-\d{2}-\d{2}$/.test(v),
+        "Date de naissance invalide",
+      ),
+    patient_social_security: z.string().max(20).optional(),
+    ordered_for_someone: z.boolean().default(false),
+    relative_firstname: z.string().optional(),
+    relative_lastname: z.string().optional(),
+    relative_relation: z.string().optional(),
+    relative_phone: z.string().optional(),
     specialties: z
       .object({
         accompagnant: z.boolean().optional(),
@@ -72,6 +84,37 @@ export const createPatientMissionSchema = z
         message: "Choisissez une société d’ambulances",
         path: ["company_id"],
       });
+    }
+
+    if (data.ordered_for_someone) {
+      if (!data.relative_firstname?.trim()) {
+        ctx.addIssue({
+          code: "custom",
+          message: "Prénom du demandeur requis",
+          path: ["relative_firstname"],
+        });
+      }
+      if (!data.relative_lastname?.trim()) {
+        ctx.addIssue({
+          code: "custom",
+          message: "Nom du demandeur requis",
+          path: ["relative_lastname"],
+        });
+      }
+      if (!data.relative_phone?.trim() || data.relative_phone.trim().length < 6) {
+        ctx.addIssue({
+          code: "custom",
+          message: "Téléphone du demandeur requis",
+          path: ["relative_phone"],
+        });
+      }
+      if (!data.patient_birthdate) {
+        ctx.addIssue({
+          code: "custom",
+          message: "Date de naissance du patient requise",
+          path: ["patient_birthdate"],
+        });
+      }
     }
 
     const hasOccurrences = (data.occurrences?.length ?? 0) > 0;
