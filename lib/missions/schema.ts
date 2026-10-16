@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { isDateTimeInPast } from "@/lib/missions/booking-meta";
+
 export const vehicleTypeSchema = z.enum(["AMB", "VSL"]);
 export const tripTypeSchema = z.enum(["aller", "retour", "aller_retour"]);
 export const sourcePlatformSchema = z.enum([
@@ -145,6 +147,31 @@ export const createPatientMissionSchema = z
           code: "custom",
           message: "Heure requise",
           path: ["time"],
+        });
+      }
+      if (
+        data.date &&
+        data.time &&
+        isDateTimeInPast(data.date, data.time)
+      ) {
+        ctx.addIssue({
+          code: "custom",
+          message: "La date et l’heure du rendez-vous ne peuvent pas être dans le passé",
+          path: ["time"],
+        });
+      }
+    }
+
+    if (hasOccurrences) {
+      const past = data.occurrences!.some((o) =>
+        isDateTimeInPast(o.date, o.time),
+      );
+      if (past) {
+        ctx.addIssue({
+          code: "custom",
+          message:
+            "Une ou plusieurs dates de trajet sont déjà passées — choisissez des horaires à venir",
+          path: ["occurrences"],
         });
       }
     }
