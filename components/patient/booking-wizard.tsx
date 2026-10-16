@@ -96,6 +96,36 @@ function defaultDays(time: string): Record<DayKey, DaySlot> {
   ) as Record<DayKey, DaySlot>;
 }
 
+function capitalizeFr(value: string) {
+  if (!value) return value;
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+/** ISO date YYYY-MM-DD → "Vendredi 17 octobre" */
+function formatDateFr(isoDate: string) {
+  const d = new Date(`${isoDate}T12:00:00`);
+  if (Number.isNaN(d.getTime())) return isoDate;
+  return capitalizeFr(
+    d.toLocaleDateString("fr-FR", {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+    }),
+  );
+}
+
+/** "15:00" → "15 h 00" */
+function formatTimeFr(time: string) {
+  const [h = "00", m = "00"] = time.split(":");
+  return `${h} h ${m}`;
+}
+
+function tripTypeLabel(tripType: "aller" | "aller_retour" | "retour") {
+  if (tripType === "aller_retour") return "Aller-retour";
+  if (tripType === "retour") return "Retour";
+  return "Aller";
+}
+
 export function BookingWizard({
   companies,
   defaultName,
@@ -607,24 +637,11 @@ export function BookingWizard({
             </div>
 
             {previewOccurrences.length > 0 ? (
-              <div className="patient-card space-y-2">
-                <p className="font-bold">
-                  {previewOccurrences.length} trajet
-                  {previewOccurrences.length > 1 ? "s" : ""} prévu
-                  {previewOccurrences.length > 1 ? "s" : ""}
-                </p>
-                <ul className="max-h-40 space-y-1 overflow-y-auto text-base text-[var(--muted)]">
-                  {previewOccurrences.slice(0, 8).map((o) => (
-                    <li key={`${o.date}-${o.time}`}>
-                      {o.date} à {o.time}
-                      {o.trip_type === "aller_retour" ? " · A/R" : ""}
-                    </li>
-                  ))}
-                  {previewOccurrences.length > 8 ? (
-                    <li>… et {previewOccurrences.length - 8} autres</li>
-                  ) : null}
-                </ul>
-              </div>
+              <IterativeTripList
+                occurrences={previewOccurrences}
+                title="Aperçu des trajets"
+                maxVisible={6}
+              />
             ) : null}
           </div>
         ) : null}
@@ -733,49 +750,53 @@ export function BookingWizard({
         ) : null}
 
         {step === "confirm" ? (
-          <div className="patient-card space-y-3" aria-label="Récapitulatif">
-            <ReviewRow
-              label="Type"
-              value={
-                draft.booking_mode === "iterative"
-                  ? `Itératif · ${previewOccurrences.length} trajets`
-                  : "Ponctuel"
-              }
-            />
-            <ReviewRow label="Société" value={dispatchLabel} />
-            <ReviewRow label="Départ" value={draft.depart_address} />
-            <ReviewRow label="Arrivée" value={draft.arrival_address} />
-            {draft.booking_mode === "once" ? (
+          <div className="space-y-4" aria-label="Récapitulatif">
+            <div className="patient-card space-y-3">
               <ReviewRow
-                label="Rendez-vous"
-                value={`${draft.date} à ${draft.time}${
-                  draft.trip_type === "aller_retour" ? " · Aller-retour" : ""
-                }`}
+                label="Type"
+                value={
+                  draft.booking_mode === "iterative"
+                    ? `Trajets itératifs · ${previewOccurrences.length} trajets`
+                    : "Trajet ponctuel"
+                }
               />
-            ) : (
+              <ReviewRow label="Société" value={dispatchLabel} />
+              <ReviewRow label="Départ" value={draft.depart_address} />
+              <ReviewRow label="Arrivée" value={draft.arrival_address} />
+              {draft.booking_mode === "once" ? (
+                <ReviewRow
+                  label="Rendez-vous"
+                  value={`${formatDateFr(draft.date)} · ${formatTimeFr(draft.time)}${
+                    draft.trip_type === "aller_retour"
+                      ? " · Aller-retour"
+                      : ""
+                  }`}
+                />
+              ) : null}
               <ReviewRow
-                label="Prochains trajets"
-                value={previewOccurrences
-                  .slice(0, 4)
-                  .map((o) => `${o.date} ${o.time}`)
-                  .join(" · ")}
+                label="Passager"
+                value={`${draft.firstname} ${draft.lastname}`}
               />
-            )}
-            <ReviewRow
-              label="Passager"
-              value={`${draft.firstname} ${draft.lastname}`}
-            />
-            {draft.phone ? (
-              <ReviewRow label="Téléphone" value={draft.phone} />
+              {draft.phone ? (
+                <ReviewRow label="Téléphone" value={draft.phone} />
+              ) : null}
+              <ReviewRow
+                label="Véhicule"
+                value={
+                  draft.transport_type === "AMB"
+                    ? "Ambulance"
+                    : "Voiture sanitaire (VSL)"
+                }
+              />
+            </div>
+
+            {draft.booking_mode === "iterative" ? (
+              <IterativeTripList
+                occurrences={previewOccurrences}
+                title="Prochains trajets"
+                maxVisible={8}
+              />
             ) : null}
-            <ReviewRow
-              label="Véhicule"
-              value={
-                draft.transport_type === "AMB"
-                  ? "Ambulance"
-                  : "Voiture sanitaire (VSL)"
-              }
-            />
           </div>
         ) : null}
       </div>
@@ -825,5 +846,65 @@ function ReviewRow({ label, value }: { label: string; value: string }) {
       <p className="text-base font-bold text-[var(--muted)]">{label}</p>
       <p className="text-lg font-semibold">{value}</p>
     </div>
+  );
+}
+
+function IterativeTripList({
+  occurrences,
+  title,
+  maxVisible = 8,
+}: {
+  occurrences: Array<{
+    date: string;
+    time: string;
+    trip_type: "aller" | "aller_retour";
+  }>;
+  title: string;
+  maxVisible?: number;
+}) {
+  const visible = occurrences.slice(0, maxVisible);
+  const remaining = occurrences.length - visible.length;
+
+  return (
+    <section className="patient-trip-panel" aria-label={title}>
+      <header className="patient-trip-panel-head">
+        <div>
+          <p className="patient-trip-panel-kicker">{title}</p>
+          <p className="patient-trip-panel-count">
+            {occurrences.length} trajet{occurrences.length > 1 ? "s" : ""}{" "}
+            planifié{occurrences.length > 1 ? "s" : ""}
+          </p>
+        </div>
+      </header>
+
+      <ol className="patient-trip-list">
+        {visible.map((o, index) => (
+          <li key={`${o.date}-${o.time}-${index}`} className="patient-trip-item">
+            <span className="patient-trip-index" aria-hidden="true">
+              {index + 1}
+            </span>
+            <div className="patient-trip-body">
+              <p className="patient-trip-date">{formatDateFr(o.date)}</p>
+              <p className="patient-trip-meta">
+                <span className="patient-trip-time">
+                  {formatTimeFr(o.time)}
+                </span>
+                <span className="patient-trip-dot" aria-hidden="true">
+                  ·
+                </span>
+                <span>{tripTypeLabel(o.trip_type)}</span>
+              </p>
+            </div>
+          </li>
+        ))}
+      </ol>
+
+      {remaining > 0 ? (
+        <p className="patient-trip-more">
+          + {remaining} autre{remaining > 1 ? "s" : ""} trajet
+          {remaining > 1 ? "s" : ""}
+        </p>
+      ) : null}
+    </section>
   );
 }
