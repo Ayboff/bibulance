@@ -143,6 +143,20 @@ function tripTypeLabel(tripType: "aller" | "aller_retour" | "retour") {
   return "Aller";
 }
 
+/** Keep digits only, max 15 (French NIR without key spaces). */
+function normalizeNirInput(value: string) {
+  return value.replace(/\D/g, "").slice(0, 15);
+}
+
+function nirValidationMessage(value: string): string | null {
+  const digits = normalizeNirInput(value);
+  if (!digits) return null;
+  if (digits.length < 15) {
+    return `Le numéro de sécurité sociale doit contenir exactement 15 chiffres (${digits.length}/15).`;
+  }
+  return null;
+}
+
 export function BookingWizard({
   companies,
   defaultName,
@@ -271,7 +285,7 @@ export function BookingWizard({
           return "Aucune date à venir — vérifiez les jours et les horaires (pas d’heure déjà passée).";
         }
         return null;
-      case "patient":
+      case "patient": {
         if (draft.ordered_for_someone) {
           if (draft.relative_firstname.trim().length < 1) {
             return "Indiquez votre prénom (demandeur).";
@@ -291,11 +305,14 @@ export function BookingWizard({
           if (!draft.patient_birthdate) {
             return "Indiquez la date de naissance du patient.";
           }
-          return null;
+        } else {
+          if (draft.firstname.trim().length < 1) return "Indiquez le prénom.";
+          if (draft.lastname.trim().length < 1) return "Indiquez le nom.";
         }
-        if (draft.firstname.trim().length < 1) return "Indiquez le prénom.";
-        if (draft.lastname.trim().length < 1) return "Indiquez le nom.";
+        const nirError = nirValidationMessage(draft.patient_social_security);
+        if (nirError) return nirError;
         return null;
+      }
       case "vehicle":
         return draft.transport_type ? null : "Choisissez un type de transport.";
       default:
@@ -344,7 +361,7 @@ export function BookingWizard({
           phone: draft.phone.trim() || undefined,
           patient_birthdate: draft.patient_birthdate || undefined,
           patient_social_security:
-            draft.patient_social_security.trim() || undefined,
+            normalizeNirInput(draft.patient_social_security) || undefined,
           ordered_for_someone: draft.ordered_for_someone,
           relative_firstname: draft.ordered_for_someone
             ? draft.relative_firstname.trim()
@@ -931,28 +948,11 @@ export function BookingWizard({
                       required
                     />
                   </div>
-                  <div>
-                    <label
-                      className="patient-label"
-                      htmlFor={`${formId}-nir`}
-                    >
-                      Numéro de sécurité sociale (optionnel)
-                    </label>
-                    <input
-                      id={`${formId}-nir`}
-                      className="patient-input"
-                      value={draft.patient_social_security}
-                      onChange={(e) =>
-                        update("patient_social_security", e.target.value)
-                      }
-                      inputMode="numeric"
-                      autoComplete="off"
-                      placeholder="15 chiffres"
-                    />
-                    <p className="mt-2 text-base text-[var(--muted)]">
-                      Vous pourrez le fournir plus tard si besoin.
-                    </p>
-                  </div>
+                  <NirField
+                    id={`${formId}-nir`}
+                    value={draft.patient_social_security}
+                    onChange={(v) => update("patient_social_security", v)}
+                  />
                   <div>
                     <label
                       className="patient-label"
@@ -1027,25 +1027,11 @@ export function BookingWizard({
                     }
                   />
                 </div>
-                <div>
-                  <label className="patient-label" htmlFor={`${formId}-nir`}>
-                    Numéro de sécurité sociale (optionnel)
-                  </label>
-                  <input
-                    id={`${formId}-nir`}
-                    className="patient-input"
-                    value={draft.patient_social_security}
-                    onChange={(e) =>
-                      update("patient_social_security", e.target.value)
-                    }
-                    inputMode="numeric"
-                    autoComplete="off"
-                    placeholder="15 chiffres"
-                  />
-                  <p className="mt-2 text-base text-[var(--muted)]">
-                    Vous pourrez le fournir plus tard si besoin.
-                  </p>
-                </div>
+                <NirField
+                  id={`${formId}-nir`}
+                  value={draft.patient_social_security}
+                  onChange={(v) => update("patient_social_security", v)}
+                />
               </div>
             )}
           </div>

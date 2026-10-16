@@ -62,7 +62,14 @@ export const createPatientMissionSchema = z
         (v) => !v || /^\d{4}-\d{2}-\d{2}$/.test(v),
         "Date de naissance invalide",
       ),
-    patient_social_security: z.string().max(20).optional(),
+    patient_social_security: z
+      .string()
+      .optional()
+      .transform((v) => (v ? v.replace(/\D/g, "") : v))
+      .refine(
+        (v) => !v || /^\d{15}$/.test(v),
+        "Le numéro de sécurité sociale doit contenir exactement 15 chiffres",
+      ),
     ordered_for_someone: z.boolean().default(false),
     relative_firstname: z.string().optional(),
     relative_lastname: z.string().optional(),
