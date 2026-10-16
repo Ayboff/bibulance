@@ -1245,6 +1245,55 @@ function ReviewRow({ label, value }: { label: string; value: string }) {
   );
 }
 
+function NirField({
+  id,
+  value,
+  onChange,
+}: {
+  id: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const digits = normalizeNirInput(value);
+  const alert = nirValidationMessage(digits);
+
+  return (
+    <div>
+      <label className="patient-label" htmlFor={id}>
+        Numéro de sécurité sociale (optionnel)
+      </label>
+      <input
+        id={id}
+        className="patient-input"
+        value={digits}
+        onChange={(e) => onChange(normalizeNirInput(e.target.value))}
+        inputMode="numeric"
+        pattern="[0-9]*"
+        maxLength={15}
+        autoComplete="off"
+        placeholder="15 chiffres"
+        aria-invalid={alert ? true : undefined}
+        aria-describedby={alert ? `${id}-hint` : `${id}-help`}
+      />
+      {alert ? (
+        <p
+          id={`${id}-hint`}
+          className="mt-2 text-base font-semibold text-[var(--danger)]"
+          role="alert"
+        >
+          {alert}
+        </p>
+      ) : (
+        <p id={`${id}-help`} className="mt-2 text-base text-[var(--muted)]">
+          {digits.length > 0
+            ? `${digits.length}/15 chiffres`
+            : "Si vous le renseignez, il doit contenir exactement 15 chiffres. Sinon vous pourrez le fournir plus tard."}
+        </p>
+      )}
+    </div>
+  );
+}
+
 function IterativeTripList({
   occurrences,
   title,
