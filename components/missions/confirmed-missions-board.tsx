@@ -1,6 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 
 import { MissionSourceChips } from "@/components/missions/mission-source-chips";
 import { StatusBadge } from "@/components/missions/status-badge";
@@ -454,7 +460,7 @@ function DetailBlock({
   children,
 }: {
   title: string;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
     <div className="space-y-2 rounded-xl border border-border/70 bg-background/70 px-3 py-3">
@@ -472,7 +478,7 @@ function DetailRow({
   muted,
 }: {
   label: string;
-  value: React.ReactNode;
+  value: ReactNode;
   muted?: boolean;
 }) {
   return (
