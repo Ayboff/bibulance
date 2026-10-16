@@ -398,7 +398,9 @@ export function BookingWizard({
         <p className="patient-lead mt-2">
           {step === "when" && draft.booking_mode === "iterative"
             ? "Choisissez les jours et l’heure de chaque trajet itératif."
-            : STEP_HINTS[step]}
+            : step === "patient" && draft.ordered_for_someone
+              ? "Renseignez vos coordonnées, puis celles du patient transporté."
+              : STEP_HINTS[step]}
         </p>
       </div>
 
