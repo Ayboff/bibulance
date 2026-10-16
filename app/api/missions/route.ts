@@ -45,8 +45,16 @@ export async function POST(request: Request) {
     }
 
     const supabase = await createClient();
-    const mission = await createPatientMission(supabase, session, parsed.data);
-    return jsonOk({ ok: true, mission }, 201);
+    const result = await createPatientMission(supabase, session, parsed.data);
+    return jsonOk(
+      {
+        ok: true,
+        mission: result.mission,
+        missions: result.missions,
+        created_count: result.created_count,
+      },
+      201,
+    );
   } catch (error) {
     return jsonError(error);
   }

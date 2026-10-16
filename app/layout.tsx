@@ -17,8 +17,8 @@ export const metadata: Metadata = {
   description:
     "Plateforme SaaS multi-tenant pour sociétés d’ambulances — régulation et commande particulier.",
   icons: {
-    icon: "/logo-mark.svg",
-    apple: "/logo-mark.svg",
+    icon: "/logo-b.png",
+    apple: "/logo-b.png",
   },
 };
 

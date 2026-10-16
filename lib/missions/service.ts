@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { SessionContext } from "@/lib/auth/session";
 import { canRegulate } from "@/lib/auth/rbac";
 import { ApiError } from "@/lib/api/http";
+import { getMissionBookingMeta } from "@/lib/missions/booking-meta";
 import {
   buildRdvIso,
   normalizeVehicleType,
@@ -11,6 +12,7 @@ import {
   type UpdateMissionInput,
   type UpdatePecInput,
 } from "@/lib/missions/schema";
+import { createAdminClient } from "@/lib/supabase/admin";
 import type { Database, Json, Mission, MissionStatus } from "@/types/database";
 
 type Client = SupabaseClient<Database>;
@@ -53,64 +55,186 @@ export async function listBookableCompanies(client: Client) {
   return (data ?? []) as { id: string; name: string; slug: string }[];
 }
 
+export type CreatePatientMissionResult = {
+  mission: Mission;
+  missions: Mission[];
+  created_count: number;
+};
+
 export async function createPatientMission(
   client: Client,
   session: SessionContext,
   input: CreatePatientMissionInput,
-): Promise<Mission> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: offsetRaw } = await (client as any).rpc(
-    "company_pec_offset_minutes",
-    { p_company_id: input.company_id },
-  );
-  const offset =
-    typeof offsetRaw === "number" && offsetRaw > 0 ? offsetRaw : 45;
+): Promise<CreatePatientMissionResult> {
+  const dispatchMode = input.dispatch_mode ?? "specific";
+  const bookingMode = input.booking_mode ?? "once";
 
-  const rdvLocal = buildRdvIso(input.date, input.time);
-  const pecIso = subtractMinutes(rdvLocal, offset);
+  let targetCompanies: { id: string; name: string; slug: string }[];
+  if (dispatchMode === "partners") {
+    targetCompanies = await listBookableCompanies(client);
+    if (targetCompanies.length === 0) {
+      throw new ApiError(400, "Aucune société partenaire disponible");
+    }
+  } else {
+    if (!input.company_id) {
+      throw new ApiError(400, "Société requise");
+    }
+    targetCompanies = [
+      { id: input.company_id, name: "", slug: "" },
+    ];
+  }
+
+  const occurrences =
+    input.occurrences && input.occurrences.length > 0
+      ? input.occurrences
+      : [
+          {
+            date: input.date!,
+            time: input.time!,
+            trip_type: input.trip_type,
+          },
+        ];
+
+  if (occurrences.length === 0) {
+    throw new ApiError(400, "Aucune date de transport");
+  }
+
+  const seriesId =
+    bookingMode === "recurring" || occurrences.length > 1
+      ? crypto.randomUUID()
+      : null;
   const vehicleType = normalizeVehicleType(input.transport_type);
+  const stamp = Date.now();
+  const created: Mission[] = [];
 
-  const insert = {
-    company_id: input.company_id,
-    source_platform: "bibulance_web" as const,
-    source_mission_id: `web-${session.userId.slice(0, 8)}-${Date.now()}`,
-    status: "incoming" as const,
-    rdv_time: rdvLocal,
-    pec_estimated_time: pecIso,
-    emitter_address: input.depart_address,
-    destination_address: input.arrival_address,
-    patient_first_name: input.firstname,
-    patient_last_name: input.lastname,
-    vehicle_type: vehicleType,
-    trip_type: input.trip_type,
-    care_type: input.reason ?? null,
-    notes: input.comment ?? null,
-    specialties: (input.specialties ?? {}) as Json,
-    created_by: session.userId,
-    external_payload: {
-      phone: input.phone ?? null,
-      patient_birthdate: input.patient_birthdate ?? null,
-      channel: "bibulance_web",
-    } as Json,
+  for (let occIndex = 0; occIndex < occurrences.length; occIndex++) {
+    const occ = occurrences[occIndex]!;
+    const tripType = occ.trip_type ?? input.trip_type ?? "aller";
+    const broadcastId =
+      dispatchMode === "partners" ? crypto.randomUUID() : null;
+
+    for (const company of targetCompanies) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: offsetRaw } = await (client as any).rpc(
+        "company_pec_offset_minutes",
+        { p_company_id: company.id },
+      );
+      const offset =
+        typeof offsetRaw === "number" && offsetRaw > 0 ? offsetRaw : 45;
+
+      const rdvLocal = buildRdvIso(occ.date, occ.time);
+      const pecIso = subtractMinutes(rdvLocal, offset);
+
+      const insert = {
+        company_id: company.id,
+        source_platform: "bibulance_web" as const,
+        source_mission_id: `web-${session.userId.slice(0, 8)}-${stamp}-${occIndex}-${company.id.slice(0, 6)}`,
+        status: "incoming" as const,
+        rdv_time: rdvLocal,
+        pec_estimated_time: pecIso,
+        emitter_address: input.depart_address,
+        destination_address: input.arrival_address,
+        patient_first_name: input.firstname,
+        patient_last_name: input.lastname,
+        vehicle_type: vehicleType,
+        trip_type: tripType,
+        care_type: input.reason ?? null,
+        notes: input.comment ?? null,
+        specialties: (input.specialties ?? {}) as Json,
+        created_by: session.userId,
+        external_payload: {
+          phone: input.phone ?? null,
+          patient_birthdate: input.patient_birthdate ?? null,
+          channel: "bibulance_web",
+          dispatch_mode: dispatchMode,
+          booking_mode: bookingMode,
+          broadcast_id: broadcastId,
+          series_id: seriesId,
+          occurrence_index: occIndex,
+        } as Json,
+      };
+
+      const { data, error } = await client
+        .from("missions")
+        .insert(insert)
+        .select("*")
+        .single();
+
+      if (error) throw new ApiError(400, error.message);
+
+      await appendEvent(client, {
+        missionId: data.id,
+        companyId: data.company_id,
+        actorId: session.userId,
+        eventType: "mission_created",
+        payload: {
+          source: "bibulance_web",
+          dispatch_mode: dispatchMode,
+          booking_mode: bookingMode,
+        },
+      });
+
+      created.push(data);
+    }
+  }
+
+  if (created.length === 0) {
+    throw new ApiError(400, "Aucune mission créée");
+  }
+
+  return {
+    mission: created[0]!,
+    missions: created,
+    created_count: created.length,
   };
+}
 
-  const { data, error } = await client
-    .from("missions")
-    .insert(insert)
-    .select("*")
-    .single();
+async function cancelBroadcastSiblings(mission: Mission) {
+  const meta = getMissionBookingMeta(mission);
+  if (!meta.broadcast_id) return;
 
-  if (error) throw new ApiError(400, error.message);
+  try {
+    const admin = createAdminClient();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: siblings } = await (admin as any)
+      .from("missions")
+      .select("id, company_id")
+      .neq("id", mission.id)
+      .is("deleted_at", null)
+      .filter("external_payload->>broadcast_id", "eq", meta.broadcast_id)
+      .in("status", ["incoming", "pending_platform"]);
 
-  await appendEvent(client, {
-    missionId: data.id,
-    companyId: data.company_id,
-    actorId: session.userId,
-    eventType: "mission_created",
-    payload: { source: "bibulance_web" },
-  });
+    const rows = (siblings ?? []) as { id: string; company_id: string }[];
+    if (rows.length === 0) return;
 
-  return data;
+    const ids = rows.map((r) => r.id);
+    await admin
+      .from("missions")
+      .update({
+        status: "cancelled",
+        accepted_bibulance: false,
+        is_locked: false,
+        assigned_vehicle_id: null,
+        assigned_driver_id: null,
+      })
+      .in("id", ids);
+
+    for (const row of rows) {
+      await appendEvent(admin as unknown as Client, {
+        missionId: row.id,
+        companyId: row.company_id,
+        actorId: null,
+        eventType: "broadcast_cancelled",
+        payload: {
+          reason: "accepted_by_partner",
+          winner_mission_id: mission.id,
+          broadcast_id: meta.broadcast_id,
+        },
+      });
+    }
+  } catch {
+    // Best-effort: acceptance still succeeds if sibling cancel fails.
+  }
 }
 
 export async function listMissions(
@@ -254,6 +378,10 @@ export async function updateMission(
     .single();
 
   if (error) throw new ApiError(400, error.message);
+
+  if (input.accepted_bibulance === true && !current.accepted_bibulance) {
+    await cancelBroadcastSiblings(data);
+  }
 
   await appendEvent(client, {
     missionId,

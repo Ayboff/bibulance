@@ -2,13 +2,14 @@
 
 import { useCallback, useMemo, useState } from "react";
 
+import { MissionSourceChips } from "@/components/missions/mission-source-chips";
 import { StatusBadge } from "@/components/missions/status-badge";
 import {
   formatDateKeyLong,
   isConfirmedMission,
   toDateKey,
 } from "@/lib/missions/dates";
-import { formatTime, PLATFORM_LABELS } from "@/lib/missions/format";
+import { formatTime } from "@/lib/missions/format";
 import { useCompanyMissionsRealtime } from "@/lib/missions/realtime";
 import type { Mission } from "@/types/database";
 
@@ -105,13 +106,13 @@ export function ConfirmedMissionsBoard({
                     key={m.id}
                     className="flex flex-col gap-2 px-4 py-4 sm:flex-row sm:items-center sm:justify-between"
                   >
-                    <div className="space-y-1">
+                    <div className="space-y-1.5">
                       <div className="flex flex-wrap items-center gap-2">
-                        <StatusBadge status={m.status} />
-                        <span className="text-sm font-semibold">
+                        <span className="text-2xl font-semibold tabular-nums text-ink">
                           {formatTime(m.rdv_time)}
                         </span>
-                        <span className="text-xs text-muted">
+                        <StatusBadge status={m.status} />
+                        <span className="text-xs font-medium text-muted">
                           PEC {formatTime(m.pec_estimated_time)}
                         </span>
                       </div>
@@ -122,11 +123,9 @@ export function ConfirmedMissionsBoard({
                         {m.emitter_address ?? m.emitter_facility ?? "—"} →{" "}
                         {m.destination_address ?? m.destination_facility ?? "—"}
                       </p>
+                      <MissionSourceChips mission={m} />
                     </div>
                     <div className="text-sm text-muted sm:text-right">
-                      <p>
-                        {PLATFORM_LABELS[m.source_platform] ?? m.source_platform}
-                      </p>
                       <p className="font-medium text-foreground">
                         {m.assigned_vehicle_id
                           ? vehicleLabels[m.assigned_vehicle_id] ?? "Véhicule"

@@ -1,19 +1,24 @@
-/* Patient — high contrast, calm teal, large targets */
+/* Patient — calm medical, large targets, soft motion */
 .patient-app {
-  --background: #ffffff;
+  --background: #f7fafb;
   --foreground: #1a2332;
   --card: #ffffff;
-  --muted: #3d4a5c;
+  --muted: #4a5868;
   --accent: #3d8fa3;
   --accent-foreground: #ffffff;
-  --border: #1a2332;
+  --border: #c5d2db;
   --danger: #8f3d4a;
   --success: #3d8f6a;
   --patient-focus: #4ba8b8;
+  --patient-soft: #e8f3f6;
   color: var(--foreground);
-  background: var(--background);
+  background:
+    radial-gradient(1200px 480px at 10% -10%, #dff0f4 0%, transparent 55%),
+    radial-gradient(900px 420px at 100% 0%, #eaf6f0 0%, transparent 50%),
+    var(--background);
   font-size: 1.125rem;
   line-height: 1.55;
+  min-height: 100%;
 }
 
 .patient-app *:focus-visible {
@@ -25,7 +30,7 @@
   font-size: 1.75rem;
   line-height: 1.25;
   font-weight: 700;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.02em;
 }
 
 .patient-app .patient-lead {
@@ -34,75 +39,134 @@
 }
 
 .patient-app .patient-step {
-  font-size: 1rem;
+  font-size: 0.95rem;
   font-weight: 700;
-  color: var(--muted);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.patient-app .patient-progress {
+  height: 0.65rem;
+  width: 100%;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e2ebef;
+  box-shadow: inset 0 1px 2px rgb(26 35 50 / 0.06);
+}
+
+.patient-app .patient-progress-bar {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #5fa88a, #3d8fa3 55%, #4ba8b8);
+  transition: width 0.35s ease;
 }
 
 .patient-app .patient-btn {
-  min-height: 48px;
+  min-height: 52px;
   min-width: 48px;
   font-size: 1.125rem;
   font-weight: 700;
-  border-radius: 0.85rem;
+  border-radius: 0.95rem;
   padding-inline: 1.25rem;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.2s ease,
+    background 0.2s ease;
+}
+
+.patient-app .patient-btn:active:not(:disabled) {
+  transform: scale(0.985);
 }
 
 .patient-app .patient-btn-primary {
-  background: var(--accent);
+  background: linear-gradient(180deg, #4a9fb2 0%, #3d8fa3 100%);
   color: var(--accent-foreground);
-  border: 2px solid #367f91;
+  border: none;
+  box-shadow: 0 10px 24px -14px rgb(61 143 163 / 0.85);
+}
+
+.patient-app .patient-btn-primary:hover:not(:disabled) {
+  box-shadow: 0 14px 28px -12px rgb(61 143 163 / 0.9);
 }
 
 .patient-app .patient-btn-secondary {
   background: var(--card);
   color: var(--foreground);
-  border: 2px solid var(--border);
+  border: 1.5px solid var(--border);
 }
 
 .patient-app .patient-input {
   min-height: 52px;
   width: 100%;
-  border: 2px solid var(--border);
-  border-radius: 0.85rem;
+  border: 1.5px solid var(--border);
+  border-radius: 0.95rem;
   padding: 0.75rem 1rem;
   font-size: 1.125rem;
   background: #fff;
   color: var(--foreground);
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.patient-app .patient-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px rgb(61 143 163 / 0.15);
+  outline: none;
 }
 
 .patient-app .patient-label {
   display: block;
   margin-bottom: 0.5rem;
-  font-size: 1.125rem;
+  font-size: 1.05rem;
   font-weight: 700;
   color: var(--foreground);
 }
 
 .patient-app .patient-choice {
-  min-height: 64px;
+  min-height: 68px;
   width: 100%;
   text-align: left;
-  border: 2px solid var(--border);
-  border-radius: 0.85rem;
+  border: 1.5px solid var(--border);
+  border-radius: 1rem;
   padding: 1rem 1.25rem;
   font-size: 1.125rem;
   font-weight: 700;
   background: #fff;
+  box-shadow: 0 6px 18px -16px rgb(26 35 50 / 0.35);
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease,
+    transform 0.15s ease,
+    box-shadow 0.2s ease;
+}
+
+.patient-app .patient-choice:hover {
+  border-color: #9bb7c4;
 }
 
 .patient-app .patient-choice[aria-pressed="true"],
 .patient-app .patient-choice[data-selected="true"] {
   border-color: #3d8fa3;
-  background: #e8f3f6;
-  box-shadow: inset 0 0 0 1px #3d8fa3;
+  background: linear-gradient(180deg, #f3fafc 0%, #e8f3f6 100%);
+  box-shadow:
+    inset 0 0 0 1px #3d8fa3,
+    0 10px 22px -16px rgb(61 143 163 / 0.55);
 }
 
 .patient-app .patient-card {
-  border: 2px solid var(--border);
-  border-radius: 1rem;
+  border: 1.5px solid var(--border);
+  border-radius: 1.1rem;
   padding: 1.25rem;
-  background: var(--card);
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 10px 28px -20px rgb(26 35 50 / 0.35);
+}
+
+.patient-app .patient-card[data-active="true"] {
+  border-color: #9ec5d1;
+  background: #f8fcfd;
 }
 
 .patient-app .patient-status {
@@ -111,7 +175,7 @@
   min-height: 40px;
   padding: 0.35rem 0.75rem;
   border-radius: 0.5rem;
-  border: 2px solid currentColor;
+  border: 1.5px solid currentColor;
   font-size: 1rem;
   font-weight: 700;
 }

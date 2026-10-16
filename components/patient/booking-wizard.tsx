@@ -3,21 +3,60 @@
 import { useRouter } from "next/navigation";
 import { useId, useMemo, useState } from "react";
 
+import { buildOccurrencesFromDays } from "@/lib/missions/booking-meta";
+
 type Company = { id: string; name: string; slug: string };
 
+type DayKey =
+  | "Lundi"
+  | "Mardi"
+  | "Mercredi"
+  | "Jeudi"
+  | "Vendredi"
+  | "Samedi"
+  | "Dimanche";
+
+type DaySlot = {
+  active: boolean;
+  time: string;
+  trip_type: "aller" | "aller_retour";
+};
+
 type Draft = {
+  booking_mode: "once" | "recurring";
+  dispatch_mode: "specific" | "partners";
   company_id: string;
   depart_address: string;
   arrival_address: string;
   date: string;
   time: string;
+  trip_type: "aller" | "aller_retour";
   firstname: string;
   lastname: string;
   phone: string;
   transport_type: "VSL" | "AMB";
+  days: Record<DayKey, DaySlot>;
+  end_date: string;
+  count: string;
+  specialties: {
+    accompagnant: boolean;
+    fauteuil: boolean;
+    oxygene: boolean;
+  };
 };
 
+const DAYS: DayKey[] = [
+  "Lundi",
+  "Mardi",
+  "Mercredi",
+  "Jeudi",
+  "Vendredi",
+  "Samedi",
+  "Dimanche",
+];
+
 const STEPS = [
+  "mode",
   "company",
   "depart",
   "arrive",
@@ -30,24 +69,32 @@ const STEPS = [
 type Step = (typeof STEPS)[number];
 
 const STEP_TITLES: Record<Step, string> = {
-  company: "Choisir la société",
+  mode: "Type de transport",
+  company: "Société d’ambulances",
   depart: "Adresse de départ",
   arrive: "Adresse d’arrivée",
-  when: "Date et heure",
+  when: "Quand ?",
   patient: "Vos informations",
-  vehicle: "Type de transport",
+  vehicle: "Véhicule et besoins",
   confirm: "Vérifier et envoyer",
 };
 
 const STEP_HINTS: Record<Step, string> = {
-  company: "Qui doit venir vous chercher ?",
+  mode: "Un trajet unique, ou des transports réguliers (dialyse, etc.).",
+  company: "Votre société habituelle, ou toutes les partenaires Bibulance.",
   depart: "Où faut-il venir vous prendre ?",
   arrive: "Où devez-vous aller ?",
-  when: "Quand avez-vous rendez-vous ?",
+  when: "Indiquez la date et l’heure du rendez-vous.",
   patient: "Pour qui est ce transport ?",
-  vehicle: "Quel véhicule vous convient ?",
+  vehicle: "Quel véhicule, et avez-vous des besoins particuliers ?",
   confirm: "Relisez bien avant d’envoyer.",
 };
+
+function defaultDays(time: string): Record<DayKey, DaySlot> {
+  return Object.fromEntries(
+    DAYS.map((d) => [d, { active: false, time, trip_type: "aller" as const }]),
+  ) as Record<DayKey, DaySlot>;
+}
 
 export function BookingWizard({
   companies,
@@ -59,42 +106,75 @@ export function BookingWizard({
   const router = useRouter();
   const formId = useId();
   const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
-
-  const initialSteps = useMemo<Step[]>(() => {
-    if (companies.length <= 1) {
-      return STEPS.filter((s) => s !== "company");
-    }
-    return [...STEPS];
-  }, [companies.length]);
+  const defaultTime = "14:00";
 
   const [stepIndex, setStepIndex] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [draft, setDraft] = useState<Draft>({
+    booking_mode: "once",
+    dispatch_mode: companies.length > 1 ? "partners" : "specific",
     company_id: companies[0]?.id ?? "",
     depart_address: "",
     arrival_address: "",
     date: today,
-    time: "14:00",
+    time: defaultTime,
+    trip_type: "aller",
     firstname: defaultName?.first ?? "",
     lastname: defaultName?.last ?? "",
     phone: "",
     transport_type: "VSL",
+    days: defaultDays(defaultTime),
+    end_date: "",
+    count: "8",
+    specialties: {
+      accompagnant: false,
+      fauteuil: false,
+      oxygene: false,
+    },
   });
 
-  const steps = initialSteps;
+  const steps = STEPS;
   const step = steps[stepIndex] ?? "confirm";
   const total = steps.length;
   const currentNumber = stepIndex + 1;
+
+  const previewOccurrences = useMemo(() => {
+    if (draft.booking_mode === "once") {
+      return [
+        {
+          date: draft.date,
+          time: draft.time,
+          trip_type: draft.trip_type,
+        },
+      ];
+    }
+    return buildOccurrencesFromDays({
+      days: draft.days,
+      end_date: draft.end_date || undefined,
+      count: draft.count ? Number(draft.count) : undefined,
+    });
+  }, [draft]);
 
   function update<K extends keyof Draft>(key: K, value: Draft[K]) {
     setDraft((d) => ({ ...d, [key]: value }));
     setError(null);
   }
 
+  function updateDay(day: DayKey, patch: Partial<DaySlot>) {
+    setDraft((d) => ({
+      ...d,
+      days: { ...d.days, [day]: { ...d.days[day], ...patch } },
+    }));
+    setError(null);
+  }
+
   function validateCurrent(): string | null {
     switch (step) {
+      case "mode":
+        return draft.booking_mode ? null : "Choisissez un type.";
       case "company":
+        if (draft.dispatch_mode === "partners") return null;
         return draft.company_id ? null : "Choisissez une société.";
       case "depart":
         return draft.depart_address.trim().length >= 3
@@ -105,8 +185,20 @@ export function BookingWizard({
           ? null
           : "Indiquez l’adresse d’arrivée.";
       case "when":
-        if (!draft.date) return "Choisissez une date.";
-        if (!draft.time) return "Choisissez une heure.";
+        if (draft.booking_mode === "once") {
+          if (!draft.date) return "Choisissez une date.";
+          if (!draft.time) return "Choisissez une heure.";
+          return null;
+        }
+        if (!DAYS.some((d) => draft.days[d].active)) {
+          return "Activez au moins un jour de la semaine.";
+        }
+        if (!draft.end_date && !draft.count) {
+          return "Indiquez une date de fin ou un nombre de trajets.";
+        }
+        if (previewOccurrences.length === 0) {
+          return "Aucune date générée — vérifiez vos jours.";
+        }
         return null;
       case "patient":
         if (draft.firstname.trim().length < 1) return "Indiquez le prénom.";
@@ -140,6 +232,10 @@ export function BookingWizard({
       setError(msg);
       return;
     }
+    if (previewOccurrences.length === 0) {
+      setError("Aucune date de transport à envoyer.");
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
@@ -147,22 +243,33 @@ export function BookingWizard({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          company_id: draft.company_id,
+          company_id:
+            draft.dispatch_mode === "specific" ? draft.company_id : undefined,
+          dispatch_mode: draft.dispatch_mode,
+          booking_mode: draft.booking_mode,
           firstname: draft.firstname.trim(),
           lastname: draft.lastname.trim(),
           phone: draft.phone.trim() || undefined,
           depart_address: draft.depart_address.trim(),
           arrival_address: draft.arrival_address.trim(),
-          date: draft.date,
-          time: draft.time,
+          date: draft.booking_mode === "once" ? draft.date : undefined,
+          time: draft.booking_mode === "once" ? draft.time : undefined,
           transport_type: draft.transport_type,
-          trip_type: "aller",
+          trip_type: draft.trip_type,
+          occurrences: previewOccurrences,
+          specialties: draft.specialties,
         }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "Envoi impossible");
       const id = json.mission?.id as string | undefined;
-      router.push(id ? `/commander/succes?id=${id}` : "/mes-transports");
+      const count = (json.created_count as number | undefined) ?? 1;
+      const qs = new URLSearchParams();
+      if (id) qs.set("id", id);
+      qs.set("count", String(count));
+      if (draft.dispatch_mode === "partners") qs.set("partners", "1");
+      if (draft.booking_mode === "recurring") qs.set("recurring", "1");
+      router.push(`/commander/succes?${qs.toString()}`);
       router.refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Une erreur est survenue.");
@@ -185,19 +292,27 @@ export function BookingWizard({
 
   const companyName =
     companies.find((c) => c.id === draft.company_id)?.name ?? "Société";
+  const dispatchLabel =
+    draft.dispatch_mode === "partners"
+      ? "Partenaires Bibulance (sans préférence)"
+      : companyName;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-brand-fade-up">
       <div>
         <p className="patient-step" aria-live="polite">
           Étape {currentNumber} sur {total}
         </p>
         <h1 className="patient-title mt-1">{STEP_TITLES[step]}</h1>
-        <p className="patient-lead mt-2">{STEP_HINTS[step]}</p>
+        <p className="patient-lead mt-2">
+          {step === "when" && draft.booking_mode === "recurring"
+            ? "Choisissez les jours et l’heure de chaque transport."
+            : STEP_HINTS[step]}
+        </p>
       </div>
 
       <div
-        className="h-3 w-full overflow-hidden rounded-full border-2 border-[var(--border)] bg-[var(--card)]"
+        className="patient-progress"
         role="progressbar"
         aria-valuemin={1}
         aria-valuemax={total}
@@ -205,7 +320,7 @@ export function BookingWizard({
         aria-label={`Progression : étape ${currentNumber} sur ${total}`}
       >
         <div
-          className="h-full bg-[var(--accent)] transition-all"
+          className="patient-progress-bar"
           style={{ width: `${(currentNumber / total) * 100}%` }}
         />
       </div>
@@ -221,17 +336,79 @@ export function BookingWizard({
       ) : null}
 
       <div className="space-y-4">
+        {step === "mode" ? (
+          <fieldset className="space-y-3">
+            <legend className="patient-label">Votre besoin</legend>
+            <button
+              type="button"
+              className="patient-choice"
+              data-selected={draft.booking_mode === "once"}
+              aria-pressed={draft.booking_mode === "once"}
+              onClick={() => update("booking_mode", "once")}
+            >
+              <span className="block">Trajet ponctuel</span>
+              <span className="mt-1 block text-base font-normal text-[var(--muted)]">
+                Une seule date — consultation, examen, sortie…
+              </span>
+            </button>
+            <button
+              type="button"
+              className="patient-choice"
+              data-selected={draft.booking_mode === "recurring"}
+              aria-pressed={draft.booking_mode === "recurring"}
+              onClick={() => update("booking_mode", "recurring")}
+            >
+              <span className="block">Transports réguliers</span>
+              <span className="mt-1 block text-base font-normal text-[var(--muted)]">
+                Dialyse, chimiothérapie… les mêmes jours chaque semaine
+              </span>
+            </button>
+          </fieldset>
+        ) : null}
+
         {step === "company" ? (
           <fieldset className="space-y-3">
-            <legend className="patient-label">Société d’ambulances</legend>
+            <legend className="patient-label">Qui doit venir ?</legend>
+            {companies.length > 1 ? (
+              <button
+                type="button"
+                className="patient-choice"
+                data-selected={draft.dispatch_mode === "partners"}
+                aria-pressed={draft.dispatch_mode === "partners"}
+                onClick={() => update("dispatch_mode", "partners")}
+              >
+                <span className="block">Pas de préférence</span>
+                <span className="mt-1 block text-base font-normal text-[var(--muted)]">
+                  Envoyer aux sociétés partenaires Bibulance — la première qui
+                  accepte prend en charge
+                </span>
+              </button>
+            ) : null}
+
+            <p className="pt-1 text-base font-bold text-[var(--muted)]">
+              Ou choisir une société
+            </p>
             {companies.map((c) => (
               <button
                 key={c.id}
                 type="button"
                 className="patient-choice"
-                data-selected={draft.company_id === c.id}
-                aria-pressed={draft.company_id === c.id}
-                onClick={() => update("company_id", c.id)}
+                data-selected={
+                  draft.dispatch_mode === "specific" &&
+                  draft.company_id === c.id
+                }
+                aria-pressed={
+                  draft.dispatch_mode === "specific" &&
+                  draft.company_id === c.id
+                }
+                onClick={() => {
+                  setDraft((d) => ({
+                    ...d,
+                    dispatch_mode: "specific",
+                    company_id: c.id,
+                  }));
+                  setError(null);
+                }}
               >
                 {c.name}
               </button>
@@ -276,7 +453,7 @@ export function BookingWizard({
           </div>
         ) : null}
 
-        {step === "when" ? (
+        {step === "when" && draft.booking_mode === "once" ? (
           <div className="space-y-4">
             <div>
               <label className="patient-label" htmlFor={`${formId}-date`}>
@@ -308,6 +485,147 @@ export function BookingWizard({
                 Nous viendrons vous chercher un peu avant cette heure.
               </p>
             </div>
+            <fieldset className="space-y-3">
+              <legend className="patient-label">Type de trajet</legend>
+              <button
+                type="button"
+                className="patient-choice"
+                data-selected={draft.trip_type === "aller"}
+                aria-pressed={draft.trip_type === "aller"}
+                onClick={() => update("trip_type", "aller")}
+              >
+                Aller simple
+              </button>
+              <button
+                type="button"
+                className="patient-choice"
+                data-selected={draft.trip_type === "aller_retour"}
+                aria-pressed={draft.trip_type === "aller_retour"}
+                onClick={() => update("trip_type", "aller_retour")}
+              >
+                Aller-retour
+              </button>
+            </fieldset>
+          </div>
+        ) : null}
+
+        {step === "when" && draft.booking_mode === "recurring" ? (
+          <div className="space-y-4">
+            {DAYS.map((day) => {
+              const slot = draft.days[day];
+              return (
+                <div
+                  key={day}
+                  className="patient-card space-y-3"
+                  data-active={slot.active}
+                >
+                  <button
+                    type="button"
+                    className="patient-choice"
+                    data-selected={slot.active}
+                    aria-pressed={slot.active}
+                    onClick={() => updateDay(day, { active: !slot.active })}
+                  >
+                    {day}
+                  </button>
+                  {slot.active ? (
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div>
+                        <label
+                          className="patient-label"
+                          htmlFor={`${formId}-${day}-time`}
+                        >
+                          Heure
+                        </label>
+                        <input
+                          id={`${formId}-${day}-time`}
+                          className="patient-input"
+                          type="time"
+                          value={slot.time}
+                          onChange={(e) =>
+                            updateDay(day, { time: e.target.value })
+                          }
+                        />
+                      </div>
+                      <div>
+                        <label
+                          className="patient-label"
+                          htmlFor={`${formId}-${day}-trip`}
+                        >
+                          Trajet
+                        </label>
+                        <select
+                          id={`${formId}-${day}-trip`}
+                          className="patient-input"
+                          value={slot.trip_type}
+                          onChange={(e) =>
+                            updateDay(day, {
+                              trip_type: e.target.value as
+                                | "aller"
+                                | "aller_retour",
+                            })
+                          }
+                        >
+                          <option value="aller">Aller</option>
+                          <option value="aller_retour">Aller-retour</option>
+                        </select>
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+              );
+            })}
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div>
+                <label className="patient-label" htmlFor={`${formId}-end`}>
+                  Jusqu’au (optionnel)
+                </label>
+                <input
+                  id={`${formId}-end`}
+                  className="patient-input"
+                  type="date"
+                  min={today}
+                  value={draft.end_date}
+                  onChange={(e) => update("end_date", e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="patient-label" htmlFor={`${formId}-count`}>
+                  Nombre de trajets
+                </label>
+                <input
+                  id={`${formId}-count`}
+                  className="patient-input"
+                  type="number"
+                  min={1}
+                  max={40}
+                  value={draft.count}
+                  onChange={(e) => update("count", e.target.value)}
+                />
+              </div>
+            </div>
+
+            {previewOccurrences.length > 0 ? (
+              <div className="patient-card space-y-2">
+                <p className="font-bold">
+                  {previewOccurrences.length} trajet
+                  {previewOccurrences.length > 1 ? "s" : ""} prévu
+                  {previewOccurrences.length > 1 ? "s" : ""}
+                </p>
+                <ul className="max-h-40 space-y-1 overflow-y-auto text-base text-[var(--muted)]">
+                  {previewOccurrences.slice(0, 8).map((o) => (
+                    <li key={`${o.date}-${o.time}`}>
+                      {o.date} à {o.time}
+                      {o.trip_type === "aller_retour" ? " · A/R" : ""}
+                    </li>
+                  ))}
+                  {previewOccurrences.length > 8 ? (
+                    <li>… et {previewOccurrences.length - 8} autres</li>
+                  ) : null}
+                </ul>
+              </div>
+            ) : null}
           </div>
         ) : null}
 
@@ -357,44 +675,92 @@ export function BookingWizard({
         ) : null}
 
         {step === "vehicle" ? (
-          <fieldset className="space-y-3">
-            <legend className="patient-label">Type de véhicule</legend>
-            <button
-              type="button"
-              className="patient-choice"
-              data-selected={draft.transport_type === "VSL"}
-              aria-pressed={draft.transport_type === "VSL"}
-              onClick={() => update("transport_type", "VSL")}
-            >
-              <span className="block">Voiture sanitaire (VSL)</span>
-              <span className="mt-1 block text-base font-normal text-[var(--muted)]">
-                Pour une personne qui peut s’asseoir
-              </span>
-            </button>
-            <button
-              type="button"
-              className="patient-choice"
-              data-selected={draft.transport_type === "AMB"}
-              aria-pressed={draft.transport_type === "AMB"}
-              onClick={() => update("transport_type", "AMB")}
-            >
-              <span className="block">Ambulance</span>
-              <span className="mt-1 block text-base font-normal text-[var(--muted)]">
-                Pour une personne allongée ou avec soins
-              </span>
-            </button>
-          </fieldset>
+          <div className="space-y-5">
+            <fieldset className="space-y-3">
+              <legend className="patient-label">Type de véhicule</legend>
+              <button
+                type="button"
+                className="patient-choice"
+                data-selected={draft.transport_type === "VSL"}
+                aria-pressed={draft.transport_type === "VSL"}
+                onClick={() => update("transport_type", "VSL")}
+              >
+                <span className="block">Voiture sanitaire (VSL)</span>
+                <span className="mt-1 block text-base font-normal text-[var(--muted)]">
+                  Pour une personne qui peut s’asseoir
+                </span>
+              </button>
+              <button
+                type="button"
+                className="patient-choice"
+                data-selected={draft.transport_type === "AMB"}
+                aria-pressed={draft.transport_type === "AMB"}
+                onClick={() => update("transport_type", "AMB")}
+              >
+                <span className="block">Ambulance</span>
+                <span className="mt-1 block text-base font-normal text-[var(--muted)]">
+                  Pour une personne allongée ou avec soins
+                </span>
+              </button>
+            </fieldset>
+
+            <fieldset className="space-y-3">
+              <legend className="patient-label">Besoins (optionnel)</legend>
+              {(
+                [
+                  ["accompagnant", "Accompagnant"],
+                  ["fauteuil", "Fauteuil roulant"],
+                  ["oxygene", "Oxygène"],
+                ] as const
+              ).map(([key, label]) => (
+                <label key={key} className="patient-choice flex cursor-pointer items-center gap-3">
+                  <input
+                    type="checkbox"
+                    className="size-5 accent-[var(--accent)]"
+                    checked={draft.specialties[key]}
+                    onChange={(e) =>
+                      update("specialties", {
+                        ...draft.specialties,
+                        [key]: e.target.checked,
+                      })
+                    }
+                  />
+                  <span>{label}</span>
+                </label>
+              ))}
+            </fieldset>
+          </div>
         ) : null}
 
         {step === "confirm" ? (
           <div className="patient-card space-y-3" aria-label="Récapitulatif">
-            <ReviewRow label="Société" value={companyName} />
+            <ReviewRow
+              label="Type"
+              value={
+                draft.booking_mode === "recurring"
+                  ? `Régulier · ${previewOccurrences.length} trajets`
+                  : "Ponctuel"
+              }
+            />
+            <ReviewRow label="Société" value={dispatchLabel} />
             <ReviewRow label="Départ" value={draft.depart_address} />
             <ReviewRow label="Arrivée" value={draft.arrival_address} />
-            <ReviewRow
-              label="Rendez-vous"
-              value={`${draft.date} à ${draft.time}`}
-            />
+            {draft.booking_mode === "once" ? (
+              <ReviewRow
+                label="Rendez-vous"
+                value={`${draft.date} à ${draft.time}${
+                  draft.trip_type === "aller_retour" ? " · Aller-retour" : ""
+                }`}
+              />
+            ) : (
+              <ReviewRow
+                label="Prochains trajets"
+                value={previewOccurrences
+                  .slice(0, 4)
+                  .map((o) => `${o.date} ${o.time}`)
+                  .join(" · ")}
+              />
+            )}
             <ReviewRow
               label="Passager"
               value={`${draft.firstname} ${draft.lastname}`}
@@ -422,7 +788,11 @@ export function BookingWizard({
             disabled={busy}
             onClick={() => void submit()}
           >
-            {busy ? "Envoi en cours…" : "Envoyer ma demande"}
+            {busy
+              ? "Envoi en cours…"
+              : draft.booking_mode === "recurring"
+                ? `Envoyer ${previewOccurrences.length} demandes`
+                : "Envoyer ma demande"}
           </button>
         ) : (
           <button

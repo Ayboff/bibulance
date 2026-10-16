@@ -6,7 +6,12 @@ import { formatDateTime, formatTime } from "@/lib/missions/format";
 import { getMission } from "@/lib/missions/service";
 import { createClient } from "@/lib/supabase/server";
 
-type SearchParams = Promise<{ id?: string }>;
+type SearchParams = Promise<{
+  id?: string;
+  count?: string;
+  partners?: string;
+  recurring?: string;
+}>;
 
 export default async function CommanderSuccessPage({
   searchParams,
@@ -19,6 +24,9 @@ export default async function CommanderSuccessPage({
   const params = await searchParams;
   let pec: string | null = null;
   let rdv: string | null = null;
+  const count = Math.max(1, Number(params.count ?? "1") || 1);
+  const partners = params.partners === "1";
+  const recurring = params.recurring === "1";
 
   if (params.id) {
     try {
@@ -34,19 +42,29 @@ export default async function CommanderSuccessPage({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-brand-fade-up">
       <div className="patient-card space-y-3 border-[var(--success)]">
         <p className="patient-title text-[var(--success)]">Demande envoyée</p>
         <p className="patient-lead">
-          Votre demande de transport a bien été reçue. Vous pouvez suivre son
-          avancement dans « Mes trajets ».
+          {recurring
+            ? `${count} transport${count > 1 ? "s" : ""} régulier${count > 1 ? "s" : ""} ont bien été transmis.`
+            : partners
+              ? "Votre demande a été envoyée aux sociétés partenaires Bibulance."
+              : "Votre demande de transport a bien été reçue."}{" "}
+          Suivez l’avancement dans « Mes trajets ».
         </p>
-        {rdv ? (
-          <p className="text-lg font-semibold">
-            Rendez-vous : {formatDateTime(rdv)}
+        {partners ? (
+          <p className="text-base font-semibold text-[var(--accent)]">
+            La première société qui accepte prendra en charge votre trajet.
           </p>
         ) : null}
-        {pec ? (
+        {rdv ? (
+          <p className="text-lg font-semibold">
+            {recurring ? "Premier rendez-vous" : "Rendez-vous"} :{" "}
+            {formatDateTime(rdv)}
+          </p>
+        ) : null}
+        {pec && !recurring ? (
           <div>
             <p className="text-base font-bold text-[var(--muted)]">
               Prise en charge estimée

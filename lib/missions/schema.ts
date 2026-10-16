@@ -25,30 +25,84 @@ export const missionStatusSchema = z.enum([
   "refused",
 ]);
 
-export const createPatientMissionSchema = z.object({
-  company_id: z.string().uuid(),
-  firstname: z.string().min(1, "Prénom requis"),
-  lastname: z.string().min(1, "Nom requis"),
-  phone: z.string().min(6).optional(),
-  depart_address: z.string().min(3, "Adresse de départ requise"),
-  arrival_address: z.string().min(3, "Adresse d’arrivée requise"),
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date invalide (YYYY-MM-DD)"),
-  time: z.string().regex(/^\d{2}:\d{2}$/, "Heure invalide (HH:mm)"),
-  transport_type: z.enum(["ambulance", "vsl", "AMB", "VSL"]),
-  reason: z.string().optional(),
-  comment: z.string().optional(),
-  trip_type: tripTypeSchema.default("aller"),
-  patient_birthdate: z.string().optional(),
-  specialties: z
-    .object({
-      accompagnant: z.boolean().optional(),
-      deambulateur: z.boolean().optional(),
-      fauteuil: z.boolean().optional(),
-      bmr: z.boolean().optional(),
-      oxygene: z.boolean().optional(),
-    })
-    .optional(),
+const occurrenceSchema = z.object({
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  time: z.string().regex(/^\d{2}:\d{2}$/),
+  trip_type: tripTypeSchema.optional(),
 });
+
+export const createPatientMissionSchema = z
+  .object({
+    company_id: z.string().uuid().optional(),
+    dispatch_mode: z.enum(["specific", "partners"]).default("specific"),
+    booking_mode: z.enum(["once", "recurring"]).default("once"),
+    firstname: z.string().min(1, "Prénom requis"),
+    lastname: z.string().min(1, "Nom requis"),
+    phone: z.string().min(6).optional(),
+    depart_address: z.string().min(3, "Adresse de départ requise"),
+    arrival_address: z.string().min(3, "Adresse d’arrivée requise"),
+    date: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, "Date invalide (YYYY-MM-DD)")
+      .optional(),
+    time: z
+      .string()
+      .regex(/^\d{2}:\d{2}$/, "Heure invalide (HH:mm)")
+      .optional(),
+    transport_type: z.enum(["ambulance", "vsl", "AMB", "VSL"]),
+    reason: z.string().optional(),
+    comment: z.string().optional(),
+    trip_type: tripTypeSchema.default("aller"),
+    patient_birthdate: z.string().optional(),
+    specialties: z
+      .object({
+        accompagnant: z.boolean().optional(),
+        deambulateur: z.boolean().optional(),
+        fauteuil: z.boolean().optional(),
+        bmr: z.boolean().optional(),
+        oxygene: z.boolean().optional(),
+      })
+      .optional(),
+    occurrences: z.array(occurrenceSchema).max(40).optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.dispatch_mode === "specific" && !data.company_id) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Choisissez une société d’ambulances",
+        path: ["company_id"],
+      });
+    }
+
+    const hasOccurrences = (data.occurrences?.length ?? 0) > 0;
+    if (data.booking_mode === "recurring") {
+      if (!hasOccurrences) {
+        ctx.addIssue({
+          code: "custom",
+          message: "Ajoutez au moins une date de transport régulier",
+          path: ["occurrences"],
+        });
+      }
+      return;
+    }
+
+    if (!hasOccurrences) {
+      if (!data.date) {
+        ctx.addIssue({
+          code: "custom",
+          message: "Date requise",
+          path: ["date"],
+        });
+      }
+      if (!data.time) {
+        ctx.addIssue({
+          code: "custom",
+          message: "Heure requise",
+          path: ["time"],
+        });
+      }
+    }
+  });
 
 export const listMissionsQuerySchema = z.object({
   date: z

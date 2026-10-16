@@ -3,11 +3,13 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import { MissionSourceChips } from "@/components/missions/mission-source-chips";
 import { StatusBadge } from "@/components/missions/status-badge";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { getMissionBookingMeta } from "@/lib/missions/booking-meta";
 import {
   computeMissionKpis,
   formatDateKeyLong,
@@ -197,6 +199,26 @@ export function ProMissionsBoard({
     selected?.vehicle_type ? v.vehicle_type === selected.vehicle_type : true,
   );
 
+  const partnersOfDay = useMemo(
+    () =>
+      missions.filter(
+        (m) =>
+          toDateKey(m.rdv_time) === dateKey &&
+          getMissionBookingMeta(m).dispatch_mode === "partners",
+      ).length,
+    [missions, dateKey],
+  );
+
+  const recurringOfDay = useMemo(
+    () =>
+      missions.filter((m) => {
+        if (toDateKey(m.rdv_time) !== dateKey) return false;
+        const meta = getMissionBookingMeta(m);
+        return meta.booking_mode === "recurring" || !!meta.series_id;
+      }).length,
+    [missions, dateKey],
+  );
+
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
@@ -208,11 +230,11 @@ export function ProMissionsBoard({
           value={kpis.confirmed}
           href="/pro/confirmed"
         />
-        <Kpi label="Particuliers" value={kpis.bibulanceWeb} />
-        <Kpi label="Affectées" value={kpis.assigned} />
+        <Kpi label="Partenaires" value={partnersOfDay} />
+        <Kpi label="Réguliers" value={recurringOfDay} />
       </div>
 
-      <div className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4">
+      <div className="flex flex-col gap-3 rounded-2xl border border-border/80 bg-card/95 p-4 shadow-[0_10px_30px_-22px_rgb(26_35_50_/_0.35)] backdrop-blur">
         <div className="flex flex-wrap items-center gap-2">
           <Button
             type="button"
@@ -314,43 +336,64 @@ export function ProMissionsBoard({
 
       {error ? <Alert>{error}</Alert> : null}
 
-      <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
-        <div className="overflow-hidden rounded-xl border border-border bg-card">
-          <div className="flex items-center justify-between border-b border-border px-3 py-2">
-            <p className="text-sm font-semibold">{filtered.length} mission(s)</p>
+      <div className="grid gap-4 xl:grid-cols-[1fr_380px]">
+        <div className="overflow-hidden rounded-2xl border border-border/80 bg-card shadow-[0_10px_30px_-22px_rgb(26_35_50_/_0.35)]">
+          <div className="flex items-center justify-between border-b border-border px-4 py-3">
+            <p className="text-sm font-semibold">
+              {filtered.length} mission{filtered.length > 1 ? "s" : ""}
+            </p>
+            <p className="text-xs font-medium text-muted">
+              Cliquez une ligne pour réguler
+            </p>
           </div>
 
           {/* Mobile cards */}
           <ul className="divide-y divide-border md:hidden">
-            {filtered.map((m) => (
-              <li key={m.id}>
-                <button
-                  type="button"
-                  onClick={() => setSelectedId(m.id)}
-                  className={`w-full space-y-2 px-4 py-4 text-left ${
-                    selectedId === m.id ? "bg-accent/10" : ""
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <StatusBadge status={m.status} />
-                    <span className="text-sm font-semibold">
-                      {formatTime(m.rdv_time)}
-                    </span>
-                  </div>
-                  <p className="font-semibold">
-                    {m.patient_last_name} {m.patient_first_name}
-                  </p>
-                  <p className="text-sm text-muted">
-                    {m.emitter_address ?? m.emitter_facility ?? "—"} →{" "}
-                    {m.destination_address ?? m.destination_facility ?? "—"}
-                  </p>
-                  <p className="text-xs text-muted">
-                    PEC {formatTime(m.pec_estimated_time)} ·{" "}
-                    {PLATFORM_LABELS[m.source_platform] ?? m.source_platform}
-                  </p>
-                </button>
-              </li>
-            ))}
+            {filtered.map((m) => {
+              const meta = getMissionBookingMeta(m);
+              return (
+                <li key={m.id}>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedId(m.id)}
+                    className={`w-full space-y-2.5 px-4 py-4 text-left transition ${
+                      selectedId === m.id
+                        ? "bg-accent-soft/80"
+                        : "hover:bg-background"
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-3xl font-semibold tabular-nums tracking-tight text-ink">
+                          {formatTime(m.rdv_time)}
+                        </p>
+                        <p className="mt-0.5 text-xs font-medium text-muted">
+                          PEC {formatTime(m.pec_estimated_time)}
+                        </p>
+                      </div>
+                      <StatusBadge status={m.status} />
+                    </div>
+                    <p className="text-base font-semibold">
+                      {m.patient_last_name} {m.patient_first_name}
+                    </p>
+                    <p className="text-sm leading-snug text-muted">
+                      <span className="font-medium text-ink">
+                        {m.emitter_address ?? m.emitter_facility ?? "—"}
+                      </span>
+                      <span className="mx-1.5 text-accent">→</span>
+                      {m.destination_address ?? m.destination_facility ?? "—"}
+                    </p>
+                    <MissionSourceChips mission={m} />
+                    {meta.dispatch_mode === "partners" &&
+                    !m.accepted_bibulance ? (
+                      <p className="text-xs font-semibold text-accent">
+                        Ouverte aux partenaires — accepter pour la prendre
+                      </p>
+                    ) : null}
+                  </button>
+                </li>
+              );
+            })}
             {filtered.length === 0 ? (
               <li className="px-4 py-10 text-center text-muted">
                 Aucune mission pour ce filtre.
@@ -360,57 +403,73 @@ export function ProMissionsBoard({
 
           {/* Desktop table */}
           <table className="hidden w-full text-left text-sm md:table">
-            <thead className="border-b border-border bg-background text-xs uppercase text-muted">
+            <thead className="border-b border-border bg-background/80 text-[11px] uppercase tracking-wide text-muted">
               <tr>
-                <th className="px-3 py-3">État</th>
-                <th className="px-3 py-3">Trajet</th>
-                <th className="px-3 py-3">Patient</th>
-                <th className="px-3 py-3">Source</th>
+                <th className="px-4 py-3">Horaires</th>
+                <th className="px-4 py-3">Patient & trajet</th>
+                <th className="px-4 py-3">État</th>
+                <th className="px-4 py-3">Origine</th>
               </tr>
             </thead>
             <tbody>
-              {filtered.map((m) => (
-                <tr
-                  key={m.id}
-                  tabIndex={0}
-                  onClick={() => setSelectedId(m.id)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      setSelectedId(m.id);
-                    }
-                  }}
-                  className={`cursor-pointer border-b border-border hover:bg-background focus:bg-accent/10 focus:outline-none ${
-                    selectedId === m.id ? "bg-accent/10" : ""
-                  }`}
-                >
-                  <td className="px-3 py-3">
-                    <StatusBadge status={m.status} />
-                    <div className="mt-1 text-xs text-muted">
-                      RDV {formatTime(m.rdv_time)} · PEC{" "}
-                      {formatTime(m.pec_estimated_time)}
-                    </div>
-                  </td>
-                  <td className="px-3 py-3">
-                    <div className="font-medium">
-                      {m.emitter_address ?? m.emitter_facility ?? "—"}
-                    </div>
-                    <div className="text-muted">
-                      → {m.destination_address ?? m.destination_facility ?? "—"}
-                    </div>
-                  </td>
-                  <td className="px-3 py-3">
-                    {m.patient_last_name} {m.patient_first_name}
-                    <div className="text-xs text-muted">{m.vehicle_type}</div>
-                  </td>
-                  <td className="px-3 py-3">
-                    {PLATFORM_LABELS[m.source_platform] ?? m.source_platform}
-                  </td>
-                </tr>
-              ))}
+              {filtered.map((m) => {
+                const meta = getMissionBookingMeta(m);
+                return (
+                  <tr
+                    key={m.id}
+                    tabIndex={0}
+                    onClick={() => setSelectedId(m.id)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        setSelectedId(m.id);
+                      }
+                    }}
+                    className={`cursor-pointer border-b border-border transition hover:bg-background focus:bg-accent-soft/70 focus:outline-none ${
+                      selectedId === m.id ? "bg-accent-soft/80" : ""
+                    }`}
+                  >
+                    <td className="px-4 py-3.5 align-top">
+                      <div className="text-xl font-semibold tabular-nums text-ink">
+                        {formatTime(m.rdv_time)}
+                      </div>
+                      <div className="mt-0.5 text-xs font-medium text-muted">
+                        PEC {formatTime(m.pec_estimated_time)}
+                      </div>
+                      <div className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-muted">
+                        {m.vehicle_type}
+                        {m.trip_type === "aller_retour" ? " · A/R" : ""}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3.5 align-top">
+                      <div className="font-semibold">
+                        {m.patient_last_name} {m.patient_first_name}
+                      </div>
+                      <div className="mt-1 font-medium text-ink">
+                        {m.emitter_address ?? m.emitter_facility ?? "—"}
+                      </div>
+                      <div className="text-muted">
+                        → {m.destination_address ?? m.destination_facility ?? "—"}
+                      </div>
+                      {meta.dispatch_mode === "partners" &&
+                      !m.accepted_bibulance ? (
+                        <p className="mt-1.5 text-xs font-semibold text-accent">
+                          Appel partenaires
+                        </p>
+                      ) : null}
+                    </td>
+                    <td className="px-4 py-3.5 align-top">
+                      <StatusBadge status={m.status} />
+                    </td>
+                    <td className="px-4 py-3.5 align-top">
+                      <MissionSourceChips mission={m} />
+                    </td>
+                  </tr>
+                );
+              })}
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="px-3 py-10 text-center text-muted">
+                  <td colSpan={4} className="px-4 py-10 text-center text-muted">
                     Aucune mission pour ce filtre.
                   </td>
                 </tr>
@@ -419,26 +478,53 @@ export function ProMissionsBoard({
           </table>
         </div>
 
-        <aside className="h-fit space-y-4 rounded-xl border border-border bg-card p-4 lg:sticky lg:top-4">
-          <h2 className="text-lg font-semibold">Action régulateur</h2>
+        <aside className="h-fit space-y-4 rounded-2xl border border-border/80 bg-card p-5 shadow-[0_10px_30px_-22px_rgb(26_35_50_/_0.35)] lg:sticky lg:top-4">
+          <h2 className="text-lg font-semibold tracking-tight">
+            Action régulateur
+          </h2>
           {!selected ? (
-            <p className="text-sm text-muted">Sélectionnez une mission.</p>
+            <p className="text-sm text-muted">
+              Sélectionnez une mission dans la liste.
+            </p>
           ) : (
             <div className="space-y-4">
               <div className="text-sm">
-                <p className="text-lg font-semibold">
+                <p className="text-2xl font-semibold tabular-nums text-ink">
+                  {formatTime(selected.rdv_time)}
+                </p>
+                <p className="mt-1 text-lg font-semibold">
                   {selected.patient_last_name} {selected.patient_first_name}
                 </p>
                 <p className="text-muted">
                   RDV {formatDateTime(selected.rdv_time)}
                 </p>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  <StatusBadge status={selected.status} />
-                  <span className="rounded-md border border-border px-2 py-1 text-xs font-semibold">
-                    {PLATFORM_LABELS[selected.source_platform] ??
-                      selected.source_platform}
+                <p className="mt-2 leading-snug">
+                  <span className="font-medium">
+                    {selected.emitter_address ??
+                      selected.emitter_facility ??
+                      "—"}
                   </span>
+                  <span className="mx-1.5 text-accent">→</span>
+                  {selected.destination_address ??
+                    selected.destination_facility ??
+                    "—"}
+                </p>
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <StatusBadge status={selected.status} />
+                  <MissionSourceChips mission={selected} />
                 </div>
+                {getMissionBookingMeta(selected).dispatch_mode ===
+                  "partners" && !selected.accepted_bibulance ? (
+                  <p className="mt-3 rounded-lg border border-[var(--ring)]/30 bg-accent-soft px-3 py-2 text-xs font-medium text-ink">
+                    Mission ouverte aux partenaires. En acceptant, les autres
+                    sociétés voient la demande se fermer.
+                  </p>
+                ) : null}
+                {getMissionBookingMeta(selected).phone ? (
+                  <p className="mt-2 text-sm font-medium">
+                    Tél. {getMissionBookingMeta(selected).phone}
+                  </p>
+                ) : null}
               </div>
 
               <div className="flex flex-col gap-2">

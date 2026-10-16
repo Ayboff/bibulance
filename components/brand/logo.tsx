@@ -11,16 +11,18 @@ type LogoProps = {
   size?: "sm" | "md" | "lg";
 };
 
+/** Official PNG wordmark — aspect ~3.06:1 */
 const FULL = {
-  sm: { width: 140, height: 36, className: "h-7 w-auto" },
-  md: { width: 168, height: 42, className: "h-8 w-auto sm:h-9" },
-  lg: { width: 196, height: 50, className: "h-10 w-auto" },
+  sm: { width: 140, height: 46, className: "h-8 w-auto" },
+  md: { width: 180, height: 59, className: "h-9 w-auto sm:h-10" },
+  lg: { width: 220, height: 72, className: "h-11 w-auto" },
 } as const;
 
+/** Official PNG mark — aspect ~0.81:1 */
 const MARK = {
-  sm: { width: 28, height: 28, className: "h-7 w-7" },
-  md: { width: 36, height: 36, className: "h-9 w-9" },
-  lg: { width: 44, height: 44, className: "h-11 w-11" },
+  sm: { width: 28, height: 34, className: "h-8 w-auto" },
+  md: { width: 36, height: 44, className: "h-9 w-auto" },
+  lg: { width: 44, height: 54, className: "h-11 w-auto" },
 } as const;
 
 export function Logo({
@@ -31,7 +33,7 @@ export function Logo({
   size = "md",
 }: LogoProps) {
   const dims = variant === "full" ? FULL[size] : MARK[size];
-  const src = variant === "full" ? "/logo-full.svg" : "/logo-mark.svg";
+  const src = variant === "full" ? "/logo-bibulance.png" : "/logo-b.png";
 
   const content = (
     <Image
