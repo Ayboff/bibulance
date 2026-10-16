@@ -3,7 +3,12 @@
 import { useRouter } from "next/navigation";
 import { useId, useMemo, useState } from "react";
 
-import { buildOccurrencesFromDays } from "@/lib/missions/booking-meta";
+import {
+  buildOccurrencesFromDays,
+  isDateTimeInPast,
+  parisNowParts,
+  suggestDefaultTime,
+} from "@/lib/missions/booking-meta";
 
 type Company = { id: string; name: string; slug: string };
 
@@ -147,8 +152,14 @@ export function BookingWizard({
 }) {
   const router = useRouter();
   const formId = useId();
-  const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
-  const defaultTime = "14:00";
+  const { today, minTimeToday, defaultTime } = useMemo(() => {
+    const parts = parisNowParts();
+    return {
+      today: parts.date,
+      minTimeToday: parts.time,
+      defaultTime: suggestDefaultTime(),
+    };
+  }, []);
 
   const [stepIndex, setStepIndex] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -242,6 +253,12 @@ export function BookingWizard({
         if (draft.booking_mode === "once") {
           if (!draft.date) return "Choisissez une date.";
           if (!draft.time) return "Choisissez une heure.";
+          if (draft.date < today) {
+            return "La date du rendez-vous ne peut pas être dans le passé.";
+          }
+          if (isDateTimeInPast(draft.date, draft.time)) {
+            return `Choisissez une heure à partir de ${formatTimeFr(minTimeToday)} pour aujourd’hui.`;
+          }
           return null;
         }
         if (!DAYS.some((d) => draft.days[d].active)) {
@@ -251,7 +268,7 @@ export function BookingWizard({
           return "Indiquez une date de fin ou un nombre de trajets.";
         }
         if (previewOccurrences.length === 0) {
-          return "Aucune date générée — vérifiez vos jours.";
+          return "Aucune date à venir — vérifiez les jours et les horaires (pas d’heure déjà passée).";
         }
         return null;
       case "patient":
@@ -558,7 +575,20 @@ export function BookingWizard({
                 type="date"
                 value={draft.date}
                 min={today}
-                onChange={(e) => update("date", e.target.value)}
+                onChange={(e) => {
+                  const nextDate = e.target.value;
+                  setDraft((d) => {
+                    let nextTime = d.time;
+                    if (
+                      nextDate === today &&
+                      isDateTimeInPast(nextDate, nextTime)
+                    ) {
+                      nextTime = suggestDefaultTime();
+                    }
+                    return { ...d, date: nextDate, time: nextTime };
+                  });
+                  setError(null);
+                }}
                 required
               />
             </div>
@@ -571,11 +601,14 @@ export function BookingWizard({
                 className="patient-input"
                 type="time"
                 value={draft.time}
+                min={draft.date === today ? minTimeToday : undefined}
                 onChange={(e) => update("time", e.target.value)}
                 required
               />
               <p className="mt-2 text-base text-[var(--muted)]">
-                Nous viendrons vous chercher un peu avant cette heure.
+                {draft.date === today
+                  ? `Aujourd’hui, choisissez une heure à partir de ${formatTimeFr(minTimeToday)}.`
+                  : "Nous viendrons vous chercher un peu avant cette heure."}
               </p>
             </div>
             <fieldset className="space-y-3">

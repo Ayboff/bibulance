@@ -55,6 +55,52 @@ export function getMissionBookingMeta(
   };
 }
 
+/** Wall-clock date/time in Europe/Paris (YYYY-MM-DD + HH:mm). */
+export function parisNowParts(now = new Date()): { date: string; time: string } {
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Europe/Paris",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+    })
+      .formatToParts(now)
+      .filter((p) => p.type !== "literal")
+      .map((p) => [p.type, p.value]),
+  ) as Record<string, string>;
+
+  return {
+    date: `${parts.year}-${parts.month}-${parts.day}`,
+    time: `${parts.hour}:${parts.minute}`,
+  };
+}
+
+/** True if the RDV is strictly before now (Paris). */
+export function isDateTimeInPast(date: string, time: string, now = new Date()) {
+  const current = parisNowParts(now);
+  if (date < current.date) return true;
+  if (date > current.date) return false;
+  return time < current.time;
+}
+
+/** Next sensible default time (round up to next 15 min, Paris). */
+export function suggestDefaultTime(now = new Date()): string {
+  const { time } = parisNowParts(now);
+  const [hStr, mStr] = time.split(":");
+  let h = Number(hStr);
+  let m = Number(mStr);
+  m = Math.ceil((m + 1) / 15) * 15;
+  if (m >= 60) {
+    m = 0;
+    h += 1;
+  }
+  if (h >= 24) return "23:59";
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
 export function buildOccurrencesFromDays(args: {
   days: Record<
     string,
@@ -62,6 +108,7 @@ export function buildOccurrencesFromDays(args: {
   >;
   end_date?: string;
   count?: number;
+  now?: Date;
 }): Array<{ date: string; time: string; trip_type: "aller" | "aller_retour" }> {
   const dayIndex: Record<string, number> = {
     Lundi: 1,
@@ -78,8 +125,9 @@ export function buildOccurrencesFromDays(args: {
     time: string;
     trip_type: "aller" | "aller_retour";
   }> = [];
-  const start = new Date();
-  start.setHours(0, 0, 0, 0);
+  const now = args.now ?? new Date();
+  const { date: todayParis } = parisNowParts(now);
+  const start = new Date(`${todayParis}T12:00:00`);
   const end = args.end_date ? new Date(`${args.end_date}T23:59:59`) : null;
   const maxCount = args.count && args.count > 0 ? Math.min(args.count, 40) : 40;
 
@@ -98,8 +146,11 @@ export function buildOccurrencesFromDays(args: {
     const yyyy = d.getFullYear();
     const mm = String(d.getMonth() + 1).padStart(2, "0");
     const dd = String(d.getDate()).padStart(2, "0");
+    const date = `${yyyy}-${mm}-${dd}`;
+    if (isDateTimeInPast(date, slot.time, now)) continue;
+
     generated.push({
-      date: `${yyyy}-${mm}-${dd}`,
+      date,
       time: slot.time,
       trip_type: slot.trip_type ?? "aller",
     });
