@@ -1,10 +1,14 @@
 "use client";
 
-import { patientStatus } from "@/lib/patient/status";
+import { useCallback, useMemo, useState } from "react";
+
+import {
+  isActiveUpcomingMission,
+  patientStatusDetail,
+} from "@/lib/patient/status";
 import { formatDateTime, formatTime } from "@/lib/missions/format";
 import { useMissionsCreatedByRealtime } from "@/lib/missions/realtime";
 import type { Mission } from "@/types/database";
-import { useCallback, useState } from "react";
 
 function mergeMission(list: Mission[], mission: Mission, eventType: string) {
   if (eventType === "DELETE" || mission.deleted_at) {
@@ -41,7 +45,7 @@ export function PatientTripsList({
     ({ eventType, mission }: { eventType: string; mission: Mission }) => {
       setMissions((prev) => mergeMission(prev, mission, eventType));
       if (eventType === "UPDATE") {
-        const st = patientStatus(mission.status);
+        const st = patientStatusDetail(mission);
         setLiveMessage(
           `Mise à jour : ${st.label}. Heure de prise en charge ${formatTime(mission.pec_estimated_time)}.`,
         );
@@ -52,9 +56,17 @@ export function PatientTripsList({
 
   useMissionsCreatedByRealtime(userId, onChange);
 
-  const now = Date.now();
-  const upcoming = missions.filter((m) => Date.parse(m.rdv_time) >= now - 60_000);
-  const past = missions.filter((m) => Date.parse(m.rdv_time) < now - 60_000);
+  const { upcoming, history } = useMemo(() => {
+    const up: Mission[] = [];
+    const hist: Mission[] = [];
+    for (const m of missions) {
+      if (isActiveUpcomingMission(m)) up.push(m);
+      else hist.push(m);
+    }
+    up.sort((a, b) => a.rdv_time.localeCompare(b.rdv_time));
+    hist.sort((a, b) => b.rdv_time.localeCompare(a.rdv_time));
+    return { upcoming: up, history: hist };
+  }, [missions]);
 
   return (
     <div className="space-y-8">
@@ -68,9 +80,9 @@ export function PatientTripsList({
         missions={upcoming}
       />
       <TripSection
-        title="Passés"
-        empty="Aucun transport passé."
-        missions={past}
+        title="Historique"
+        empty="Aucun transport dans l’historique."
+        missions={history}
       />
     </div>
   );
@@ -105,7 +117,10 @@ function TripSection({
 }
 
 function TripCard({ mission }: { mission: Mission }) {
-  const st = patientStatus(mission.status);
+  const st = patientStatusDetail(mission);
+  const isClosed =
+    mission.status === "cancelled" || mission.status === "refused";
+
   return (
     <li className="patient-card space-y-3">
       <div className="flex flex-wrap items-center gap-2">
@@ -114,15 +129,17 @@ function TripCard({ mission }: { mission: Mission }) {
 
       <p className="text-xl font-bold">{formatDateTime(mission.rdv_time)}</p>
 
-      <div>
-        <p className="text-base font-bold text-[var(--muted)]">Prise en charge</p>
-        <p className="text-2xl font-bold text-[var(--accent)]">
-          {formatTime(mission.pec_estimated_time)}
-        </p>
-        <p className="text-base text-[var(--muted)]">
-          Heure prévue pour venir vous chercher
-        </p>
-      </div>
+      {!isClosed ? (
+        <div>
+          <p className="text-base font-bold text-[var(--muted)]">Prise en charge</p>
+          <p className="text-2xl font-bold text-[var(--accent)]">
+            {formatTime(mission.pec_estimated_time)}
+          </p>
+          <p className="text-base text-[var(--muted)]">
+            Heure prévue pour venir vous chercher
+          </p>
+        </div>
+      ) : null}
 
       <div>
         <p className="text-base font-bold text-[var(--muted)]">Trajet</p>
@@ -136,7 +153,22 @@ function TripCard({ mission }: { mission: Mission }) {
         </p>
       </div>
 
-      <p className="text-base text-[var(--muted)]">{st.hint}</p>
+      <p
+        className={`text-base ${
+          isClosed ? "font-semibold text-[var(--danger)]" : "text-[var(--muted)]"
+        }`}
+      >
+        {st.hint}
+      </p>
+
+      {isClosed ? (
+        <a
+          href="/commander"
+          className="patient-btn patient-btn-secondary inline-flex w-full items-center justify-center"
+        >
+          Nouvelle demande
+        </a>
+      ) : null}
 
       <p className="text-base font-semibold">
         {mission.vehicle_type === "AMB" ? "Ambulance" : "Voiture sanitaire (VSL)"}

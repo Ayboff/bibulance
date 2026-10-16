@@ -65,6 +65,7 @@ const DAYS: DayKey[] = [
 ];
 
 const STEPS = [
+  "who",
   "mode",
   "company",
   "depart",
@@ -78,23 +79,25 @@ const STEPS = [
 type Step = (typeof STEPS)[number];
 
 const STEP_TITLES: Record<Step, string> = {
+  who: "Je commande pour…",
   mode: "Type de transport",
   company: "Société d’ambulances",
   depart: "Adresse de départ",
   arrive: "Adresse d’arrivée",
   when: "Quand ?",
-  patient: "Je commande pour…",
+  patient: "Informations du trajet",
   vehicle: "Véhicule et besoins",
   confirm: "Vérifier et envoyer",
 };
 
 const STEP_HINTS: Record<Step, string> = {
+  who: "Pour vous, ou pour un proche (parents, grands-parents…).",
   mode: "Un trajet unique, ou des trajets itératifs (dialyse, etc.).",
   company: "Votre société habituelle, ou toutes les partenaires Bibulance.",
   depart: "Où faut-il venir vous prendre ?",
   arrive: "Où devez-vous aller ?",
   when: "Indiquez la date et l’heure du rendez-vous.",
-  patient: "Pour vous, ou pour un proche (parents, grands-parents…).",
+  patient: "Nom, téléphone et infos utiles pour le transport.",
   vehicle: "Quel véhicule, et avez-vous des besoins particuliers ?",
   confirm: "Relisez bien avant d’envoyer.",
 };
@@ -220,6 +223,8 @@ export function BookingWizard({
 
   function validateCurrent(): string | null {
     switch (step) {
+      case "who":
+        return null;
       case "mode":
         return draft.booking_mode ? null : "Choisissez un type.";
       case "company":
@@ -702,63 +707,65 @@ export function BookingWizard({
           </div>
         ) : null}
 
+        {step === "who" ? (
+          <fieldset className="space-y-3">
+            <legend className="patient-label">Je commande pour…</legend>
+            <button
+              type="button"
+              className="patient-choice"
+              data-selected={!draft.ordered_for_someone}
+              aria-pressed={!draft.ordered_for_someone}
+              onClick={() => {
+                setDraft((d) => ({
+                  ...d,
+                  ordered_for_someone: false,
+                  firstname: selfFirst || d.firstname,
+                  lastname: selfLast || d.lastname,
+                }));
+                setError(null);
+              }}
+            >
+              <span className="block">Moi-même</span>
+              <span className="mt-1 block text-base font-normal text-[var(--muted)]">
+                Je suis le patient transporté
+              </span>
+            </button>
+            <button
+              type="button"
+              className="patient-choice"
+              data-selected={draft.ordered_for_someone}
+              aria-pressed={draft.ordered_for_someone}
+              onClick={() => {
+                setDraft((d) => ({
+                  ...d,
+                  ordered_for_someone: true,
+                  relative_firstname:
+                    d.relative_firstname || selfFirst || d.firstname,
+                  relative_lastname:
+                    d.relative_lastname || selfLast || d.lastname,
+                  firstname:
+                    d.ordered_for_someone || d.firstname !== selfFirst
+                      ? d.firstname
+                      : "",
+                  lastname:
+                    d.ordered_for_someone || d.lastname !== selfLast
+                      ? d.lastname
+                      : "",
+                }));
+                setError(null);
+              }}
+            >
+              <span className="block">Pour un proche</span>
+              <span className="mt-1 block text-base font-normal text-[var(--muted)]">
+                Parents, grands-parents, aidant… je commande pour quelqu’un
+                d’autre
+              </span>
+            </button>
+          </fieldset>
+        ) : null}
+
         {step === "patient" ? (
           <div className="space-y-5">
-            <fieldset className="space-y-3">
-              <legend className="patient-label">Je commande pour…</legend>
-              <button
-                type="button"
-                className="patient-choice"
-                data-selected={!draft.ordered_for_someone}
-                aria-pressed={!draft.ordered_for_someone}
-                onClick={() => {
-                  setDraft((d) => ({
-                    ...d,
-                    ordered_for_someone: false,
-                    firstname: selfFirst || d.firstname,
-                    lastname: selfLast || d.lastname,
-                  }));
-                  setError(null);
-                }}
-              >
-                <span className="block">Moi-même</span>
-                <span className="mt-1 block text-base font-normal text-[var(--muted)]">
-                  Je suis le patient transporté
-                </span>
-              </button>
-              <button
-                type="button"
-                className="patient-choice"
-                data-selected={draft.ordered_for_someone}
-                aria-pressed={draft.ordered_for_someone}
-                onClick={() => {
-                  setDraft((d) => ({
-                    ...d,
-                    ordered_for_someone: true,
-                    relative_firstname:
-                      d.relative_firstname || selfFirst || d.firstname,
-                    relative_lastname:
-                      d.relative_lastname || selfLast || d.lastname,
-                    firstname:
-                      d.ordered_for_someone || d.firstname !== selfFirst
-                        ? d.firstname
-                        : "",
-                    lastname:
-                      d.ordered_for_someone || d.lastname !== selfLast
-                        ? d.lastname
-                        : "",
-                  }));
-                  setError(null);
-                }}
-              >
-                <span className="block">Pour un proche</span>
-                <span className="mt-1 block text-base font-normal text-[var(--muted)]">
-                  Parents, grands-parents, aidant… je commande pour quelqu’un
-                  d’autre
-                </span>
-              </button>
-            </fieldset>
-
             {draft.ordered_for_someone ? (
               <>
                 <div className="patient-card space-y-4">
