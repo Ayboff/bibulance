@@ -26,7 +26,8 @@ export default async function ProConfirmedPage() {
       <div>
         <h1 className="text-2xl font-semibold text-ink">Planning confirmé</h1>
         <p className="text-muted">
-          Missions validées, regroupées par date pour le suivi.
+          Aujourd’hui et à venir pour le suivi opérationnel — les journées
+          passées sont dans l’historique.
         </p>
       </div>
       <ConfirmedMissionsBoard
