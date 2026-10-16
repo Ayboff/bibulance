@@ -67,7 +67,11 @@ export async function createPatientMission(
   input: CreatePatientMissionInput,
 ): Promise<CreatePatientMissionResult> {
   const dispatchMode = input.dispatch_mode ?? "specific";
-  const bookingMode = input.booking_mode ?? "once";
+  const bookingModeRaw = input.booking_mode ?? "once";
+  const bookingMode =
+    bookingModeRaw === "iterative" || bookingModeRaw === "recurring"
+      ? "iterative"
+      : "once";
 
   let targetCompanies: { id: string; name: string; slug: string }[];
   if (dispatchMode === "partners") {
@@ -100,7 +104,7 @@ export async function createPatientMission(
   }
 
   const seriesId =
-    bookingMode === "recurring" || occurrences.length > 1
+    bookingMode === "iterative" || occurrences.length > 1
       ? crypto.randomUUID()
       : null;
   const vehicleType = normalizeVehicleType(input.transport_type);

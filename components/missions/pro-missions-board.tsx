@@ -209,12 +209,12 @@ export function ProMissionsBoard({
     [missions, dateKey],
   );
 
-  const recurringOfDay = useMemo(
+  const iterativeOfDay = useMemo(
     () =>
       missions.filter((m) => {
         if (toDateKey(m.rdv_time) !== dateKey) return false;
         const meta = getMissionBookingMeta(m);
-        return meta.booking_mode === "recurring" || !!meta.series_id;
+        return meta.booking_mode === "iterative" || !!meta.series_id;
       }).length,
     [missions, dateKey],
   );
@@ -231,7 +231,7 @@ export function ProMissionsBoard({
           href="/pro/confirmed"
         />
         <Kpi label="Partenaires" value={partnersOfDay} />
-        <Kpi label="Réguliers" value={recurringOfDay} />
+        <Kpi label="Itératifs" value={iterativeOfDay} />
       </div>
 
       <div className="flex flex-col gap-3 rounded-2xl border border-border/80 bg-card/95 p-4 shadow-[0_10px_30px_-22px_rgb(26_35_50_/_0.35)] backdrop-blur">

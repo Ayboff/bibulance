@@ -23,7 +23,7 @@ type DaySlot = {
 };
 
 type Draft = {
-  booking_mode: "once" | "recurring";
+  booking_mode: "once" | "iterative";
   dispatch_mode: "specific" | "partners";
   company_id: string;
   depart_address: string;
@@ -80,7 +80,7 @@ const STEP_TITLES: Record<Step, string> = {
 };
 
 const STEP_HINTS: Record<Step, string> = {
-  mode: "Un trajet unique, ou des transports réguliers (dialyse, etc.).",
+  mode: "Un trajet unique, ou des trajets itératifs (dialyse, etc.).",
   company: "Votre société habituelle, ou toutes les partenaires Bibulance.",
   depart: "Où faut-il venir vous prendre ?",
   arrive: "Où devez-vous aller ?",
@@ -268,7 +268,7 @@ export function BookingWizard({
       if (id) qs.set("id", id);
       qs.set("count", String(count));
       if (draft.dispatch_mode === "partners") qs.set("partners", "1");
-      if (draft.booking_mode === "recurring") qs.set("recurring", "1");
+      if (draft.booking_mode === "iterative") qs.set("iterative", "1");
       router.push(`/commander/succes?${qs.toString()}`);
       router.refresh();
     } catch (e) {
@@ -305,8 +305,8 @@ export function BookingWizard({
         </p>
         <h1 className="patient-title mt-1">{STEP_TITLES[step]}</h1>
         <p className="patient-lead mt-2">
-          {step === "when" && draft.booking_mode === "recurring"
-            ? "Choisissez les jours et l’heure de chaque transport."
+          {step === "when" && draft.booking_mode === "iterative"
+            ? "Choisissez les jours et l’heure de chaque trajet itératif."
             : STEP_HINTS[step]}
         </p>
       </div>
@@ -354,11 +354,11 @@ export function BookingWizard({
             <button
               type="button"
               className="patient-choice"
-              data-selected={draft.booking_mode === "recurring"}
-              aria-pressed={draft.booking_mode === "recurring"}
-              onClick={() => update("booking_mode", "recurring")}
+              data-selected={draft.booking_mode === "iterative"}
+              aria-pressed={draft.booking_mode === "iterative"}
+              onClick={() => update("booking_mode", "iterative")}
             >
-              <span className="block">Transports réguliers</span>
+              <span className="block">Trajets itératifs</span>
               <span className="mt-1 block text-base font-normal text-[var(--muted)]">
                 Dialyse, chimiothérapie… les mêmes jours chaque semaine
               </span>
@@ -509,7 +509,7 @@ export function BookingWizard({
           </div>
         ) : null}
 
-        {step === "when" && draft.booking_mode === "recurring" ? (
+        {step === "when" && draft.booking_mode === "iterative" ? (
           <div className="space-y-4">
             {DAYS.map((day) => {
               const slot = draft.days[day];
@@ -737,8 +737,8 @@ export function BookingWizard({
             <ReviewRow
               label="Type"
               value={
-                draft.booking_mode === "recurring"
-                  ? `Régulier · ${previewOccurrences.length} trajets`
+                draft.booking_mode === "iterative"
+                  ? `Itératif · ${previewOccurrences.length} trajets`
                   : "Ponctuel"
               }
             />
@@ -790,8 +790,8 @@ export function BookingWizard({
           >
             {busy
               ? "Envoi en cours…"
-              : draft.booking_mode === "recurring"
-                ? `Envoyer ${previewOccurrences.length} demandes`
+              : draft.booking_mode === "iterative"
+                ? `Envoyer ${previewOccurrences.length} trajets itératifs`
                 : "Envoyer ma demande"}
           </button>
         ) : (

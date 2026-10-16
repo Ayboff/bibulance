@@ -21,8 +21,8 @@ export function MissionSourceChips({
       {meta.dispatch_mode === "partners" ? (
         <Chip tone="accent">Partenaires</Chip>
       ) : null}
-      {meta.booking_mode === "recurring" || meta.series_id ? (
-        <Chip tone="mint">Régulier</Chip>
+      {meta.booking_mode === "iterative" || meta.series_id ? (
+        <Chip tone="mint">Itératif</Chip>
       ) : null}
       {mission.trip_type === "aller_retour" ? (
         <Chip tone="neutral">A/R</Chip>

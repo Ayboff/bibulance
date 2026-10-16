@@ -1,7 +1,7 @@
 import type { Json, Mission } from "@/types/database";
 
 export type DispatchMode = "specific" | "partners";
-export type BookingMode = "once" | "recurring";
+export type BookingMode = "once" | "iterative";
 
 export type MissionBookingMeta = {
   dispatch_mode: DispatchMode;
@@ -24,7 +24,10 @@ export function getMissionBookingMeta(
   const p = asRecord(mission.external_payload);
   const dispatch =
     p.dispatch_mode === "partners" ? "partners" : "specific";
-  const booking = p.booking_mode === "recurring" ? "recurring" : "once";
+  const booking =
+    p.booking_mode === "iterative" || p.booking_mode === "recurring"
+      ? "iterative"
+      : "once";
   return {
     dispatch_mode: dispatch,
     booking_mode: booking,

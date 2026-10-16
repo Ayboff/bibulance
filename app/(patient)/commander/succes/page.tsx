@@ -11,6 +11,7 @@ type SearchParams = Promise<{
   count?: string;
   partners?: string;
   recurring?: string;
+  iterative?: string;
 }>;
 
 export default async function CommanderSuccessPage({
@@ -26,7 +27,7 @@ export default async function CommanderSuccessPage({
   let rdv: string | null = null;
   const count = Math.max(1, Number(params.count ?? "1") || 1);
   const partners = params.partners === "1";
-  const recurring = params.recurring === "1";
+  const iterative = params.iterative === "1" || params.recurring === "1";
 
   if (params.id) {
     try {
@@ -46,8 +47,8 @@ export default async function CommanderSuccessPage({
       <div className="patient-card space-y-3 border-[var(--success)]">
         <p className="patient-title text-[var(--success)]">Demande envoyée</p>
         <p className="patient-lead">
-          {recurring
-            ? `${count} transport${count > 1 ? "s" : ""} régulier${count > 1 ? "s" : ""} ont bien été transmis.`
+          {iterative
+            ? `${count} trajet${count > 1 ? "s" : ""} itératif${count > 1 ? "s" : ""} ont bien été transmis.`
             : partners
               ? "Votre demande a été envoyée aux sociétés partenaires Bibulance."
               : "Votre demande de transport a bien été reçue."}{" "}
@@ -60,11 +61,11 @@ export default async function CommanderSuccessPage({
         ) : null}
         {rdv ? (
           <p className="text-lg font-semibold">
-            {recurring ? "Premier rendez-vous" : "Rendez-vous"} :{" "}
+            {iterative ? "Premier rendez-vous" : "Rendez-vous"} :{" "}
             {formatDateTime(rdv)}
           </p>
         ) : null}
-        {pec && !recurring ? (
+        {pec && !iterative ? (
           <div>
             <p className="text-base font-bold text-[var(--muted)]">
               Prise en charge estimée

@@ -35,7 +35,7 @@ export const createPatientMissionSchema = z
   .object({
     company_id: z.string().uuid().optional(),
     dispatch_mode: z.enum(["specific", "partners"]).default("specific"),
-    booking_mode: z.enum(["once", "recurring"]).default("once"),
+    booking_mode: z.enum(["once", "iterative", "recurring"]).default("once"),
     firstname: z.string().min(1, "Prénom requis"),
     lastname: z.string().min(1, "Nom requis"),
     phone: z.string().min(6).optional(),
@@ -75,11 +75,14 @@ export const createPatientMissionSchema = z
     }
 
     const hasOccurrences = (data.occurrences?.length ?? 0) > 0;
-    if (data.booking_mode === "recurring") {
+    if (
+      data.booking_mode === "iterative" ||
+      data.booking_mode === "recurring"
+    ) {
       if (!hasOccurrences) {
         ctx.addIssue({
           code: "custom",
-          message: "Ajoutez au moins une date de transport régulier",
+          message: "Ajoutez au moins une date de trajet itératif",
           path: ["occurrences"],
         });
       }
