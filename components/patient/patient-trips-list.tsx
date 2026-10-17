@@ -35,9 +35,11 @@ const TONE_CLASS: Record<string, string> = {
 export function PatientTripsList({
   userId,
   initialMissions,
+  companyNames = {},
 }: {
   userId: string;
   initialMissions: Mission[];
+  companyNames?: Record<string, string>;
 }) {
   const [missions, setMissions] = useState(initialMissions);
   const [liveMessage, setLiveMessage] = useState("");
@@ -47,12 +49,17 @@ export function PatientTripsList({
       setMissions((prev) => mergeMission(prev, mission, eventType));
       if (eventType === "UPDATE") {
         const st = patientStatusDetail(mission);
+        const company = companyNames[mission.company_id];
+        const companyBit =
+          mission.accepted_bibulance && company
+            ? ` Société : ${company}.`
+            : "";
         setLiveMessage(
-          `Mise à jour : ${st.label}. Heure de prise en charge ${formatTime(mission.pec_estimated_time)}.`,
+          `Mise à jour : ${st.label}.${companyBit} Heure de prise en charge ${formatTime(mission.pec_estimated_time)}.`,
         );
       }
     },
-    [],
+    [companyNames],
   );
 
   useMissionsCreatedByRealtime(userId, onChange);
@@ -80,11 +87,13 @@ export function PatientTripsList({
         title="À venir"
         empty="Vous n’avez aucun transport à venir."
         missions={upcoming}
+        companyNames={companyNames}
       />
       <TripSection
         title="Historique"
         empty="Aucun transport dans l’historique."
         missions={history}
+        companyNames={companyNames}
       />
     </div>
   );
@@ -94,10 +103,12 @@ function TripSection({
   title,
   empty,
   missions,
+  companyNames,
 }: {
   title: string;
   empty: string;
   missions: Mission[];
+  companyNames: Record<string, string>;
 }) {
   const headingId = `section-${title.replace(/\s+/g, "-").toLowerCase()}`;
   return (
@@ -110,7 +121,11 @@ function TripSection({
       ) : (
         <ul className="space-y-4">
           {missions.map((m) => (
-            <TripCard key={m.id} mission={m} />
+            <TripCard
+              key={m.id}
+              mission={m}
+              companyName={companyNames[m.company_id] ?? null}
+            />
           ))}
         </ul>
       )}
@@ -118,10 +133,17 @@ function TripSection({
   );
 }
 
-function TripCard({ mission }: { mission: Mission }) {
+function TripCard({
+  mission,
+  companyName,
+}: {
+  mission: Mission;
+  companyName: string | null;
+}) {
   const st = patientStatusDetail(mission);
   const isClosed =
     mission.status === "cancelled" || mission.status === "refused";
+  const showCompany = mission.accepted_bibulance && !isClosed;
 
   return (
     <li className="patient-card space-y-3">
@@ -130,6 +152,20 @@ function TripCard({ mission }: { mission: Mission }) {
       </div>
 
       <p className="text-xl font-bold">{formatDateTime(mission.rdv_time)}</p>
+
+      {showCompany ? (
+        <div className="rounded-xl border border-[var(--accent)]/25 bg-[var(--patient-soft,#e8f3f6)] px-3 py-3">
+          <p className="text-base font-bold text-[var(--muted)]">
+            Société d’ambulances
+          </p>
+          <p className="text-xl font-bold text-[var(--accent)]">
+            {companyName ?? "Société partenaire"}
+          </p>
+          <p className="mt-1 text-base text-[var(--muted)]">
+            C’est cette société qui vient vous chercher.
+          </p>
+        </div>
+      ) : null}
 
       {!isClosed ? (
         <div>

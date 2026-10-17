@@ -129,5 +129,13 @@ export function patientStatusDetail(mission: Mission): {
     };
   }
 
+  if (mission.accepted_bibulance && !isTerminalMissionStatus(mission.status)) {
+    return {
+      ...base,
+      hint:
+        "Une société d’ambulances a accepté votre demande. Son nom s’affiche ci-dessus.",
+    };
+  }
+
   return base;
 }

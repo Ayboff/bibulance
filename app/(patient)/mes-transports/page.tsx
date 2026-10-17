@@ -2,7 +2,10 @@ import { redirect } from "next/navigation";
 
 import { PatientTripsList } from "@/components/patient/patient-trips-list";
 import { getSessionContext } from "@/lib/auth/session";
-import { listMissions } from "@/lib/missions/service";
+import {
+  listBookableCompanies,
+  listMissions,
+} from "@/lib/missions/service";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function MesTransportsPage() {
@@ -10,7 +13,14 @@ export default async function MesTransportsPage() {
   if (!session) redirect("/login?next=/mes-transports");
 
   const supabase = await createClient();
-  const missions = await listMissions(supabase, session, { scope: "mine" });
+  const [missions, companies] = await Promise.all([
+    listMissions(supabase, session, { scope: "mine" }),
+    listBookableCompanies(supabase),
+  ]);
+
+  const companyNames = Object.fromEntries(
+    companies.map((c) => [c.id, c.name]),
+  );
 
   return (
     <div className="space-y-6">
@@ -21,7 +31,11 @@ export default async function MesTransportsPage() {
           jour automatiquement.
         </p>
       </div>
-      <PatientTripsList userId={session.userId} initialMissions={missions} />
+      <PatientTripsList
+        userId={session.userId}
+        initialMissions={missions}
+        companyNames={companyNames}
+      />
     </div>
   );
 }
