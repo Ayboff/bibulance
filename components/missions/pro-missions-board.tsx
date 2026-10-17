@@ -524,7 +524,9 @@ export function ProMissionsBoard({
               </div>
 
               <div className="flex flex-col gap-2">
-                {!selected.accepted_bibulance && selected.status !== "refused" ? (
+                {!selected.accepted_bibulance &&
+                selected.status !== "refused" &&
+                selected.status !== "cancelled" ? (
                   <>
                     <Button
                       disabled={busy}
@@ -549,20 +551,14 @@ export function ProMissionsBoard({
                   </>
                 ) : null}
 
-                {selected.accepted_bibulance && !selected.platform_confirmation ? (
-                  <Button
-                    disabled={busy}
-                    onClick={() =>
-                      patchMission(selected.id, { platform_confirmation: true })
-                    }
-                  >
-                    Confirmer plateforme
-                  </Button>
-                ) : null}
-
-                {selected.accepted_bibulance && selected.platform_confirmation ? (
-                  <div className="space-y-2">
+                {selected.status !== "refused" &&
+                selected.status !== "cancelled" ? (
+                  <div className="space-y-2 rounded-xl border border-border/70 bg-background/70 p-3">
                     <Label htmlFor="vehicle">Affecter un véhicule</Label>
+                    <p className="text-xs text-muted">
+                      Choisissez un véhicule de votre parc avant ou après la
+                      confirmation.
+                    </p>
                     <select
                       id="vehicle"
                       className="min-h-11 w-full rounded-lg border border-border bg-background px-3 text-base"
@@ -572,10 +568,13 @@ export function ProMissionsBoard({
                         const value = e.target.value;
                         void patchMission(selected.id, {
                           assigned_vehicle_id: value || null,
+                          ...(value && !selected.accepted_bibulance
+                            ? { accepted_bibulance: true }
+                            : {}),
                         });
                       }}
                     >
-                      <option value="">Choisir…</option>
+                      <option value="">Choisir un véhicule…</option>
                       {matchingVehicles.map((v) => (
                         <option key={v.id} value={v.id}>
                           {v.code} ({v.vehicle_type})
@@ -584,12 +583,19 @@ export function ProMissionsBoard({
                     </select>
                     {matchingVehicles.length === 0 ? (
                       <p className="text-xs text-muted">
-                        Aucun véhicule.{" "}
+                        Aucun véhicule {selected.vehicle_type} actif.{" "}
                         <Link href="/pro/fleet" className="text-accent underline">
-                          Gérer le parc
+                          Ajouter au parc
                         </Link>
                       </p>
-                    ) : null}
+                    ) : (
+                      <p className="text-xs text-muted">
+                        {matchingVehicles.length} véhicule
+                        {matchingVehicles.length > 1 ? "s" : ""}{" "}
+                        {selected.vehicle_type} disponible
+                        {matchingVehicles.length > 1 ? "s" : ""}.
+                      </p>
+                    )}
                     {selected.assigned_vehicle_id ? (
                       <Button
                         variant="secondary"
@@ -605,6 +611,22 @@ export function ProMissionsBoard({
                       </Button>
                     ) : null}
                   </div>
+                ) : null}
+
+                {selected.accepted_bibulance && !selected.platform_confirmation ? (
+                  <Button
+                    disabled={busy}
+                    onClick={() =>
+                      patchMission(selected.id, {
+                        platform_confirmation: true,
+                        ...(selected.assigned_vehicle_id
+                          ? { status: "assigned" as const }
+                          : {}),
+                      })
+                    }
+                  >
+                    Confirmer plateforme
+                  </Button>
                 ) : null}
               </div>
 

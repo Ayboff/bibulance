@@ -375,13 +375,31 @@ export async function updateMission(
   if (input.assigned_vehicle_id) {
     patch.assigned_at = now;
     patch.is_locked = true;
-    patch.status = (input.status ?? "assigned") as MissionStatus;
+    // Assigning a vehicle implies the company takes the mission.
+    if (!current.accepted_bibulance && input.accepted_bibulance !== false) {
+      patch.accepted_bibulance = true;
+      patch.accepted_at = current.accepted_at ?? now;
+    }
+    const confirmed =
+      input.platform_confirmation === true ||
+      current.platform_confirmation ||
+      patch.platform_confirmation === true;
+    patch.status = (input.status ??
+      (confirmed ? "assigned" : "pending_platform")) as MissionStatus;
   }
 
   if (input.assigned_vehicle_id === null) {
     patch.assigned_at = null;
     patch.is_locked = false;
-    if (!input.status) patch.status = "confirmed";
+    if (!input.status) {
+      const stillConfirmed =
+        (patch.platform_confirmation ?? current.platform_confirmation) === true;
+      const stillAccepted =
+        (patch.accepted_bibulance ?? current.accepted_bibulance) === true;
+      if (stillConfirmed) patch.status = "confirmed";
+      else if (stillAccepted) patch.status = "pending_platform";
+      else patch.status = "incoming";
+    }
   }
 
   const { data, error } = await client
