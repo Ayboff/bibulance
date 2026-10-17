@@ -32,6 +32,10 @@ Dans **Vercel → Project → Settings → Environment Variables**, pour Product
 | `SUPABASE_SERVICE_ROLE_KEY` | Server only | **jamais** `NEXT_PUBLIC_` |
 | `CRON_SECRET` | Server only | Vercel l’injecte sur les Cron Jobs |
 | `CONNECTOR_ENCRYPTION_KEY` | Server only | chiffrement credentials connecteurs |
+| `RESEND_API_KEY` | Server only | emails de bienvenue après confirmation d’inscription ([Resend](https://resend.com)) |
+| `EMAIL_FROM` | Server only | expéditeur vérifié, ex. `Bibulance <bonjour@bibulance.fr>` |
+
+Sans `RESEND_API_KEY`, l’inscription fonctionne mais le mail de bienvenue est ignoré (log serveur).
 
 Vérification locale (avec `.env.local` chargé) :
 
@@ -57,7 +61,9 @@ npm run db:push
      - `https://app.bibulance.fr/**` (si besoin previews)
      - `http://localhost:3000/callback` (dev)
 
-4. **Authentication → Providers** : Email activé (confirm email selon votre choix)
+4. **Authentication → Providers** : Email activé (confirm email recommandé).
+   Après confirmation (lien `/callback`), Bibulance envoie un **email de bienvenue** via Resend
+   (particulier ou société). Configurer `RESEND_API_KEY` + domaine vérifié + `EMAIL_FROM`.
 
 5. **Database → Replication** : table `missions` dans `supabase_realtime`
 
