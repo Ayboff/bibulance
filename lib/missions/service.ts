@@ -367,11 +367,6 @@ export async function updateMission(
     patch.assigned_driver_id = null;
   }
 
-  if (input.platform_confirmation === true && !current.platform_confirmation) {
-    patch.platform_confirmed_at = now;
-    patch.status = (input.status ?? "confirmed") as MissionStatus;
-  }
-
   if (input.assigned_vehicle_id) {
     patch.assigned_at = now;
     patch.is_locked = true;
@@ -380,25 +375,39 @@ export async function updateMission(
       patch.accepted_bibulance = true;
       patch.accepted_at = current.accepted_at ?? now;
     }
-    const confirmed =
-      input.platform_confirmation === true ||
-      current.platform_confirmation ||
-      patch.platform_confirmation === true;
-    patch.status = (input.status ??
-      (confirmed ? "assigned" : "pending_platform")) as MissionStatus;
   }
 
   if (input.assigned_vehicle_id === null) {
     patch.assigned_at = null;
     patch.is_locked = false;
-    if (!input.status) {
-      const stillConfirmed =
-        (patch.platform_confirmation ?? current.platform_confirmation) === true;
-      const stillAccepted =
-        (patch.accepted_bibulance ?? current.accepted_bibulance) === true;
-      if (stillConfirmed) patch.status = "confirmed";
-      else if (stillAccepted) patch.status = "pending_platform";
-      else patch.status = "incoming";
+  }
+
+  if (input.platform_confirmation === true && !current.platform_confirmation) {
+    patch.platform_confirmed_at = now;
+  }
+
+  // Resolve final status from combined flags (vehicle can be set before confirm).
+  if (!input.status) {
+    const accepted =
+      (patch.accepted_bibulance ?? current.accepted_bibulance) === true;
+    const confirmed =
+      (patch.platform_confirmation ?? current.platform_confirmation) === true;
+    const hasVehicle = Boolean(
+      input.assigned_vehicle_id !== undefined
+        ? input.assigned_vehicle_id
+        : current.assigned_vehicle_id,
+    );
+
+    if (input.accepted_bibulance === false) {
+      // already set to refused above
+    } else if (hasVehicle && (confirmed || accepted)) {
+      patch.status = confirmed ? "assigned" : "pending_platform";
+    } else if (confirmed) {
+      patch.status = "confirmed";
+    } else if (accepted) {
+      patch.status = "pending_platform";
+    } else if (input.assigned_vehicle_id === null) {
+      patch.status = "incoming";
     }
   }
 
@@ -411,7 +420,7 @@ export async function updateMission(
 
   if (error) throw new ApiError(400, error.message);
 
-  if (input.accepted_bibulance === true && !current.accepted_bibulance) {
+  if (data.accepted_bibulance && !current.accepted_bibulance) {
     await cancelBroadcastSiblings(data);
   }
 

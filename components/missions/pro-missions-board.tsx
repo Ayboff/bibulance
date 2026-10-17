@@ -619,9 +619,6 @@ export function ProMissionsBoard({
                     onClick={() =>
                       patchMission(selected.id, {
                         platform_confirmation: true,
-                        ...(selected.assigned_vehicle_id
-                          ? { status: "assigned" as const }
-                          : {}),
                       })
                     }
                   >
