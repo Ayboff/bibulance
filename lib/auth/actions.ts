@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
+import { sendWelcomeEmailForUser } from "@/lib/email/send-welcome";
 import { createClient } from "@/lib/supabase/server";
 
 const credentialsSchema = z.object({
@@ -85,8 +86,15 @@ export async function signUp(
     return { error: error.message };
   }
 
-  // If email confirmation is disabled, session exists → redirect
-  if (data.session) {
+  // If email confirmation is disabled, session exists → welcome email then redirect
+  if (data.session && data.user) {
+    await sendWelcomeEmailForUser({
+      userId: data.user.id,
+      email: parsed.data.email,
+      fullName: parsed.data.full_name,
+      primaryRole: parsed.data.intent === "company" ? "owner" : "patient",
+      audienceHint: parsed.data.intent === "company" ? "company" : "patient",
+    });
     redirect(parsed.data.intent === "company" ? "/pro/onboarding" : "/commander");
   }
 

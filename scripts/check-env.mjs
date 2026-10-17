@@ -14,7 +14,7 @@ const required = [
   "CONNECTOR_ENCRYPTION_KEY",
 ];
 
-const optional = ["SENTRY_DSN"];
+const optional = ["SENTRY_DSN", "RESEND_API_KEY", "EMAIL_FROM"];
 
 const placeholders = [
   ["NEXT_PUBLIC_SUPABASE_URL", /YOUR_PROJECT|your_project/i],
