@@ -192,10 +192,14 @@ export async function createPatientMission(
     throw new ApiError(400, "Aucune mission créée");
   }
 
+  // Patient-facing count = logical trips (one per occurrence), not one per company.
+  const logicalCount =
+    dispatchMode === "partners" ? occurrences.length : created.length;
+
   return {
     mission: created[0]!,
     missions: created,
-    created_count: created.length,
+    created_count: logicalCount,
   };
 }
 
