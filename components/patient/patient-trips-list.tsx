@@ -6,6 +6,7 @@ import {
   isActiveUpcomingMission,
   patientStatusDetail,
 } from "@/lib/patient/status";
+import { dedupePatientVisibleMissions } from "@/lib/patient/trips";
 import { formatDateTime, formatTime } from "@/lib/missions/format";
 import { useMissionsCreatedByRealtime } from "@/lib/missions/realtime";
 import type { Mission } from "@/types/database";
@@ -57,9 +58,10 @@ export function PatientTripsList({
   useMissionsCreatedByRealtime(userId, onChange);
 
   const { upcoming, history } = useMemo(() => {
+    const visible = dedupePatientVisibleMissions(missions);
     const up: Mission[] = [];
     const hist: Mission[] = [];
-    for (const m of missions) {
+    for (const m of visible) {
       if (isActiveUpcomingMission(m)) up.push(m);
       else hist.push(m);
     }

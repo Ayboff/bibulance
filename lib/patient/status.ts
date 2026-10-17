@@ -116,5 +116,18 @@ export function patientStatusDetail(mission: Mission): {
     };
   }
 
+  if (
+    meta.dispatch_mode === "partners" &&
+    !mission.accepted_bibulance &&
+    (mission.status === "incoming" || mission.status === "pending_platform")
+  ) {
+    return {
+      label: "Recherche en cours",
+      hint:
+        "Nous avons envoyé votre demande aux sociétés partenaires. La première qui accepte prendra en charge votre trajet.",
+      tone: "progress",
+    };
+  }
+
   return base;
 }
