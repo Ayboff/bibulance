@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { isDateTimeInPast } from "@/lib/missions/booking-meta";
+import { parisWallToUtcIso } from "@/lib/missions/timezone";
 
 export const vehicleTypeSchema = z.enum(["AMB", "VSL"]);
 export const tripTypeSchema = z.enum(["aller", "retour", "aller_retour"]);
@@ -238,7 +239,7 @@ export function normalizeVehicleType(
   return "VSL";
 }
 
-/** Build ISO timestamptz from local date+time (Europe/Paris assumed as wall clock). */
+/** Build UTC ISO timestamptz from Paris wall-clock date+time. */
 export function buildRdvIso(date: string, time: string): string {
-  return `${date}T${time}:00`;
+  return parisWallToUtcIso(date, time);
 }

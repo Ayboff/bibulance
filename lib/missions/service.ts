@@ -12,6 +12,7 @@ import {
   type UpdateMissionInput,
   type UpdatePecInput,
 } from "@/lib/missions/schema";
+import { parisDayBoundsUtc } from "@/lib/missions/timezone";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Database, Json, Mission, MissionStatus } from "@/types/database";
 
@@ -36,15 +37,12 @@ async function appendEvent(
   });
 }
 
-function subtractMinutes(isoLocal: string, minutes: number): string {
-  const d = new Date(isoLocal);
+function subtractMinutes(isoUtc: string, minutes: number): string {
+  const d = new Date(isoUtc);
   if (Number.isNaN(d.getTime())) {
-    // Fallback parse "YYYY-MM-DDTHH:mm:00"
-    const asUtc = new Date(`${isoLocal}+00:00`);
-    asUtc.setUTCMinutes(asUtc.getUTCMinutes() - minutes);
-    return asUtc.toISOString();
+    throw new ApiError(400, "Horodatage RDV invalide");
   }
-  d.setMinutes(d.getMinutes() - minutes);
+  d.setUTCMinutes(d.getUTCMinutes() - minutes);
   return d.toISOString();
 }
 
@@ -156,6 +154,7 @@ export async function createPatientMission(
           relative_relation: input.relative_relation?.trim() || null,
           relative_phone: input.relative_phone?.trim() || null,
           channel: "bibulance_web",
+          tz: "Europe/Paris",
           dispatch_mode: dispatchMode,
           booking_mode: bookingMode,
           broadcast_id: broadcastId,
@@ -272,8 +271,7 @@ export async function listMissions(
   }
 
   if (query.date) {
-    const start = `${query.date}T00:00:00`;
-    const end = `${query.date}T23:59:59.999`;
+    const { start, end } = parisDayBoundsUtc(query.date);
     builder = builder.gte("rdv_time", start).lte("rdv_time", end);
   }
 

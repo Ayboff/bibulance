@@ -1,14 +1,19 @@
 import { addDays, format, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
 
+import { parisDateKey } from "@/lib/missions/timezone";
 import type { Mission } from "@/types/database";
 
+/** Calendar day key (YYYY-MM-DD) in Europe/Paris for mission timestamps. */
 export function toDateKey(value: string): string {
   try {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+    const d = new Date(value);
+    if (!Number.isNaN(d.getTime())) return parisDateKey(d);
     if (/^\d{4}-\d{2}-\d{2}/.test(value)) return value.slice(0, 10);
-    const d = parseISO(value);
-    if (Number.isNaN(d.getTime())) return value.slice(0, 10);
-    return format(d, "yyyy-MM-dd");
+    const parsed = parseISO(value);
+    if (Number.isNaN(parsed.getTime())) return value.slice(0, 10);
+    return parisDateKey(parsed);
   } catch {
     return value.slice(0, 10);
   }

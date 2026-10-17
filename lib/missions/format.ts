@@ -1,39 +1,24 @@
-import { format, parseISO } from "date-fns";
-import { fr } from "date-fns/locale";
+import {
+  formatParisDateTime,
+  formatParisTime,
+  fromParisDatetimeLocalValue,
+  toParisDatetimeLocalValue,
+} from "@/lib/missions/timezone";
 
 export function formatDateTime(value: string | null | undefined) {
-  if (!value) return "—";
-  try {
-    const d = parseISO(value.length === 16 ? `${value}:00` : value);
-    if (Number.isNaN(d.getTime())) return value;
-    return format(d, "dd MMM yyyy · HH:mm", { locale: fr });
-  } catch {
-    return value;
-  }
+  return formatParisDateTime(value);
 }
 
 export function formatTime(value: string | null | undefined) {
-  if (!value) return "—";
-  try {
-    const d = parseISO(value.length === 16 ? `${value}:00` : value);
-    if (Number.isNaN(d.getTime())) return value;
-    return format(d, "HH:mm", { locale: fr });
-  } catch {
-    return value;
-  }
+  return formatParisTime(value);
 }
 
 export function toDatetimeLocalValue(iso: string | null | undefined) {
-  if (!iso) return "";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "";
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  return toParisDatetimeLocalValue(iso);
 }
 
 export function fromDatetimeLocalValue(local: string) {
-  const d = new Date(local);
-  return d.toISOString();
+  return fromParisDatetimeLocalValue(local);
 }
 
 export const STATUS_LABELS: Record<string, string> = {
