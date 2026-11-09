@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useId, useMemo, useState } from "react";
 
+import { AddressAutocomplete } from "@/components/patient/address-autocomplete";
 import {
   buildOccurrencesFromDays,
   isDateTimeInPast,
@@ -544,40 +545,27 @@ export function BookingWizard({
         ) : null}
 
         {step === "depart" ? (
-          <div>
-            <label className="patient-label" htmlFor={`${formId}-depart`}>
-              Adresse de départ
-            </label>
-            <input
-              id={`${formId}-depart`}
-              className="patient-input"
-              value={draft.depart_address}
-              onChange={(e) => update("depart_address", e.target.value)}
-              autoComplete="street-address"
-              placeholder="Exemple : 12 rue Victor Hugo, Paris"
-              required
-            />
-            <p className="mt-2 text-base text-[var(--muted)]">
-              Écrivez l’adresse complète, avec la ville.
-            </p>
-          </div>
+          <AddressAutocomplete
+            id={`${formId}-depart`}
+            label="Adresse de départ"
+            value={draft.depart_address}
+            onChange={(next) => update("depart_address", next)}
+            placeholder="Commencez à taper : 12 rue Victor Hugo, Paris"
+            hint="Tapez puis choisissez une suggestion pour une adresse complète et fiable."
+            required
+          />
         ) : null}
 
         {step === "arrive" ? (
-          <div>
-            <label className="patient-label" htmlFor={`${formId}-arrive`}>
-              Adresse d’arrivée
-            </label>
-            <input
-              id={`${formId}-arrive`}
-              className="patient-input"
-              value={draft.arrival_address}
-              onChange={(e) => update("arrival_address", e.target.value)}
-              autoComplete="street-address"
-              placeholder="Exemple : Hôpital Sud, Évry"
-              required
-            />
-          </div>
+          <AddressAutocomplete
+            id={`${formId}-arrive`}
+            label="Adresse d’arrivée"
+            value={draft.arrival_address}
+            onChange={(next) => update("arrival_address", next)}
+            placeholder="Commencez à taper : 47 boulevard de l’Hôpital, Paris"
+            hint="Tapez puis choisissez une suggestion. Vous pouvez aussi saisir à la main."
+            required
+          />
         ) : null}
 
         {step === "when" && draft.booking_mode === "once" ? (

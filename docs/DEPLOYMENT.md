@@ -37,6 +37,9 @@ Dans **Vercel → Project → Settings → Environment Variables**, pour Product
 
 Sans `RESEND_API_KEY`, l’inscription fonctionne mais le mail de bienvenue est ignoré (log serveur).
 
+Autocomplétion d’adresses patient : API **Base Adresse Nationale** (`api-adresse.data.gouv.fr`),
+gratuite et **sans clé**. Proxy app : `GET /api/geo/address-suggest?q=…`.
+
 Vérification locale (avec `.env.local` chargé) :
 
 ```bash
