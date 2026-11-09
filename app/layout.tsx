@@ -15,7 +15,7 @@ export const metadata: Metadata = {
     template: "%s · Bibulance",
   },
   description:
-    "Plateforme SaaS multi-tenant pour sociétés d’ambulances — régulation et commande particulier.",
+    "Bibulance relie particuliers et sociétés d’ambulances : commandez un transport sanitaire ou régulez vos missions sur une plateforme claire.",
   icons: {
     icon: "/logo-b.png",
     apple: "/logo-b.png",

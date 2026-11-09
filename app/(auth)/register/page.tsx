@@ -3,7 +3,15 @@ import Link from "next/link";
 import { RegisterForm } from "@/components/auth/register-form";
 import { Logo } from "@/components/brand/logo";
 
-export default function RegisterPage() {
+export default async function RegisterPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ intent?: string }>;
+}) {
+  const params = await searchParams;
+  const initialIntent =
+    params.intent === "company" ? ("company" as const) : ("patient" as const);
+
   return (
     <main className="brand-surface flex min-h-full flex-1 flex-col">
       <div className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center gap-6 px-6 py-12">
@@ -20,7 +28,7 @@ export default function RegisterPage() {
         </div>
 
         <div className="animate-brand-fade-up-delay brand-card p-6">
-          <RegisterForm />
+          <RegisterForm initialIntent={initialIntent} />
         </div>
 
         <p className="animate-brand-fade-up-delay-2 text-center text-sm text-muted">

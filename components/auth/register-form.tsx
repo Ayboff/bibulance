@@ -10,9 +10,13 @@ import { Label } from "@/components/ui/label";
 
 const initial: AuthActionState = {};
 
-export function RegisterForm() {
+export function RegisterForm({
+  initialIntent = "patient",
+}: {
+  initialIntent?: "patient" | "company";
+}) {
   const [state, action, pending] = useActionState(signUp, initial);
-  const [intent, setIntent] = useState<"patient" | "company">("patient");
+  const [intent, setIntent] = useState<"patient" | "company">(initialIntent);
 
   return (
     <form action={action} className="space-y-4">
