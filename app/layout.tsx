@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Plus_Jakarta_Sans } from "next/font/google";
+import { Plus_Jakarta_Sans, Syne } from "next/font/google";
 
 import { OrganizationJsonLd } from "@/components/seo/json-ld";
 import {
@@ -15,6 +15,14 @@ const jakarta = Plus_Jakarta_Sans({
   subsets: ["latin"],
   variable: "--font-jakarta",
   display: "swap",
+});
+
+/** Distinctive display face for Bibulance brand headlines */
+const syne = Syne({
+  subsets: ["latin"],
+  variable: "--font-display",
+  display: "swap",
+  weight: ["500", "600", "700"],
 });
 
 const origin = getSiteOrigin();
@@ -99,7 +107,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="fr" className={`${jakarta.variable} h-full antialiased`}>
+    <html
+      lang="fr"
+      className={`${jakarta.variable} ${syne.variable} h-full antialiased`}
+    >
       <body className="flex min-h-full flex-col bg-background font-sans text-foreground">
         <OrganizationJsonLd />
         {children}
