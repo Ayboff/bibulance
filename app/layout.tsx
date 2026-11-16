@@ -80,10 +80,12 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      { url: "/logo-b.png", type: "image/png" },
-      { url: "/favicon.ico" },
+      { url: "/icon.png", type: "image/png", sizes: "512x512" },
+      { url: "/favicon-32.png", type: "image/png", sizes: "32x32" },
+      { url: "/favicon-16.png", type: "image/png", sizes: "16x16" },
     ],
-    apple: "/logo-b.png",
+    apple: [{ url: "/apple-icon.png", sizes: "180x180", type: "image/png" }],
+    shortcut: "/favicon-32.png",
   },
   // Optional: set GOOGLE_SITE_VERIFICATION in Vercel after Search Console
   verification: process.env.GOOGLE_SITE_VERIFICATION
