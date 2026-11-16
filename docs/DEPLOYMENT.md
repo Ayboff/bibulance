@@ -40,6 +40,22 @@ Sans `RESEND_API_KEY`, l’inscription fonctionne mais le mail de bienvenue est 
 Autocomplétion d’adresses patient : API **Base Adresse Nationale** (`api-adresse.data.gouv.fr`),
 gratuite et **sans clé**. Proxy app : `GET /api/geo/address-suggest?q=…`.
 
+## SEO / Google (« bibulance » en premier résultat)
+
+Personne ne peut **garantir** le rang Google (algorithme Google). Pour une marque
+unique comme Bibulance sur `www.bibulance.fr`, le SEO technique + Search Console
+suffisent en général à apparaître en **1er résultat organique** sur la requête exacte.
+
+1. Vérifier `NEXT_PUBLIC_APP_URL=https://www.bibulance.fr` sur Vercel
+2. Aller sur [Google Search Console](https://search.google.com/search-console)
+3. **Ajouter une propriété** → préfixe d’URL `https://www.bibulance.fr`
+4. Choisir la vérification **balise HTML** → copier le code `content="..."`
+5. Sur Vercel, ajouter `GOOGLE_SITE_VERIFICATION=<ce code>` → Redeploy
+6. Dans Search Console → **Sitemaps** → soumettre `https://www.bibulance.fr/sitemap.xml`
+7. **Inspection d’URL** → `https://www.bibulance.fr` → **Demander une indexation**
+
+Fichiers app : `/robots.txt`, `/sitemap.xml`, métadonnées Open Graph + JSON-LD.
+
 Vérification locale (avec `.env.local` chargé) :
 
 ```bash

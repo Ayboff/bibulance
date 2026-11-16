@@ -1,6 +1,14 @@
 import type { Metadata } from "next";
 import { Plus_Jakarta_Sans } from "next/font/google";
 
+import { OrganizationJsonLd } from "@/components/seo/json-ld";
+import {
+  getSiteOrigin,
+  SITE_DESCRIPTION,
+  SITE_NAME,
+  SITE_TAGLINE,
+} from "@/lib/seo/site";
+
 import "./globals.css";
 
 const jakarta = Plus_Jakarta_Sans({
@@ -9,17 +17,78 @@ const jakarta = Plus_Jakarta_Sans({
   display: "swap",
 });
 
+const origin = getSiteOrigin();
+
 export const metadata: Metadata = {
+  metadataBase: new URL(origin),
   title: {
-    default: "Bibulance",
-    template: "%s · Bibulance",
+    default: `${SITE_NAME} — Transport sanitaire & régulation d’ambulances`,
+    template: `%s · ${SITE_NAME}`,
   },
-  description:
-    "Bibulance relie particuliers et sociétés d’ambulances : commandez un transport sanitaire ou régulez vos missions sur une plateforme claire.",
+  description: SITE_DESCRIPTION,
+  applicationName: SITE_NAME,
+  keywords: [
+    "Bibulance",
+    "bibulance",
+    "transport sanitaire",
+    "ambulance",
+    "VSL",
+    "régulation ambulance",
+    "commander ambulance",
+    "société d’ambulances",
+    "transport dialyse",
+  ],
+  authors: [{ name: SITE_NAME, url: origin }],
+  creator: SITE_NAME,
+  publisher: SITE_NAME,
+  category: "health",
+  alternates: {
+    canonical: "/",
+  },
+  openGraph: {
+    type: "website",
+    locale: "fr_FR",
+    url: origin,
+    siteName: SITE_NAME,
+    title: `${SITE_NAME} — ${SITE_TAGLINE}`,
+    description: SITE_DESCRIPTION,
+    images: [
+      {
+        url: "/logo-bibulance.png",
+        width: 1200,
+        height: 392,
+        alt: "Logo Bibulance",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: `${SITE_NAME} — Transport sanitaire & régulation`,
+    description: SITE_DESCRIPTION,
+    images: ["/logo-bibulance.png"],
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+      "max-video-preview": -1,
+    },
+  },
   icons: {
-    icon: "/logo-b.png",
+    icon: [
+      { url: "/logo-b.png", type: "image/png" },
+      { url: "/favicon.ico" },
+    ],
     apple: "/logo-b.png",
   },
+  // Optional: set GOOGLE_SITE_VERIFICATION in Vercel after Search Console
+  verification: process.env.GOOGLE_SITE_VERIFICATION
+    ? { google: process.env.GOOGLE_SITE_VERIFICATION }
+    : undefined,
 };
 
 export default function RootLayout({
@@ -30,6 +99,7 @@ export default function RootLayout({
   return (
     <html lang="fr" className={`${jakarta.variable} h-full antialiased`}>
       <body className="flex min-h-full flex-col bg-background font-sans text-foreground">
+        <OrganizationJsonLd />
         {children}
       </body>
     </html>
