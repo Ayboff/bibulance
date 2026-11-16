@@ -1,0 +1,11 @@
+User-Agent: *
+Allow: /
+Disallow: /api/
+Disallow: /callback
+Disallow: /compte
+Disallow: /pro/
+Disallow: /commander
+Disallow: /mes-transports
+
+Host: https://www.bibulance.fr
+Sitemap: https://www.bibulance.fr/sitemap.xml
