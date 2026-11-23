@@ -6,6 +6,8 @@ export type AddressSuggestion = {
   context: string;
   housenumber?: string;
   street?: string;
+  /** BAN = rue ; hospital/clinic/poi = établissement de santé */
+  kind?: "address" | "hospital" | "clinic" | "poi";
 };
 
 type BanFeature = {
@@ -64,6 +66,7 @@ export async function searchFrenchAddresses(
       context: (p.context ?? "").trim(),
       housenumber: p.housenumber?.trim() || undefined,
       street: p.street?.trim() || undefined,
+      kind: "address",
     });
   }
   return out;

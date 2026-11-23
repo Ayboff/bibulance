@@ -11,7 +11,7 @@ import {
   suggestDefaultTime,
 } from "@/lib/missions/booking-meta";
 
-const DRAFT_STORAGE_KEY = "bibulance.booking.draft.v1";
+const DRAFT_STORAGE_KEY = "bibulance.booking.draft.v2";
 
 type Company = { id: string; name: string; slug: string };
 
@@ -72,41 +72,24 @@ const DAYS: DayKey[] = [
   "Dimanche",
 ];
 
-const STEPS = [
-  "who",
-  "mode",
-  "company",
-  "depart",
-  "arrive",
-  "when",
-  "patient",
-  "vehicle",
-  "confirm",
-] as const;
+/** 5 écrans au lieu de 9 — trajet → quand → qui → options → envoi */
+const STEPS = ["route", "when", "patient", "options", "confirm"] as const;
 
 type Step = (typeof STEPS)[number];
 
 const STEP_TITLES: Record<Step, string> = {
-  who: "Je commande pour…",
-  mode: "Type de transport",
-  company: "Société d’ambulances",
-  depart: "Adresse de départ",
-  arrive: "Adresse d’arrivée",
+  route: "Où aller ?",
   when: "Quand ?",
-  patient: "Informations du trajet",
-  vehicle: "Véhicule et besoins",
+  patient: "Qui voyage ?",
+  options: "Véhicule & société",
   confirm: "Vérifier et envoyer",
 };
 
 const STEP_HINTS: Record<Step, string> = {
-  who: "Pour vous, ou pour un proche (parents, grands-parents…).",
-  mode: "Un trajet unique, ou des trajets itératifs (dialyse, etc.).",
-  company: "Votre société habituelle, ou toutes les partenaires Bibulance.",
-  depart: "Où faut-il venir vous prendre ?",
-  arrive: "Où devez-vous aller ?",
-  when: "Indiquez la date et l’heure du rendez-vous.",
-  patient: "Nom, téléphone et infos utiles pour le transport.",
-  vehicle: "Quel véhicule, et avez-vous des besoins particuliers ?",
+  route: "Départ et arrivée. Pour l’hôpital, tapez juste son nom.",
+  when: "Ponctuel ou itératif (dialyse…), puis date et heure.",
+  patient: "Pour vous, ou pour un proche — téléphone obligatoire.",
+  options: "VSL ou ambulance, besoins, et qui doit venir.",
   confirm: "Relisez bien avant d’envoyer.",
 };
 
@@ -296,22 +279,16 @@ export function BookingWizard({
 
   function validateCurrent(): string | null {
     switch (step) {
-      case "who":
+      case "route":
+        if (draft.depart_address.trim().length < 3) {
+          return "Indiquez l’adresse de départ.";
+        }
+        if (draft.arrival_address.trim().length < 3) {
+          return "Indiquez l’adresse d’arrivée (ou le nom de l’hôpital).";
+        }
         return null;
-      case "mode":
-        return draft.booking_mode ? null : "Choisissez un type.";
-      case "company":
-        if (draft.dispatch_mode === "partners") return null;
-        return draft.company_id ? null : "Choisissez une société.";
-      case "depart":
-        return draft.depart_address.trim().length >= 3
-          ? null
-          : "Indiquez l’adresse de départ.";
-      case "arrive":
-        return draft.arrival_address.trim().length >= 3
-          ? null
-          : "Indiquez l’adresse d’arrivée.";
       case "when":
+        if (!draft.booking_mode) return "Choisissez un type de trajet.";
         if (draft.booking_mode === "once") {
           if (!draft.date) return "Choisissez une date.";
           if (!draft.time) return "Choisissez une heure.";
@@ -367,8 +344,10 @@ export function BookingWizard({
         if (nirError) return nirError;
         return null;
       }
-      case "vehicle":
-        return draft.transport_type ? null : "Choisissez un type de transport.";
+      case "options":
+        if (!draft.transport_type) return "Choisissez un type de transport.";
+        if (draft.dispatch_mode === "partners") return null;
+        return draft.company_id ? null : "Choisissez une société.";
       default:
         return null;
     }
@@ -632,348 +611,295 @@ export function BookingWizard({
       ) : null}
 
       <div className="space-y-4 pb-28">
-        {step === "mode" ? (
-          <fieldset className="space-y-3">
-            <legend className="patient-label">Votre besoin</legend>
-            <button
-              type="button"
-              className="patient-choice"
-              data-selected={draft.booking_mode === "once"}
-              aria-pressed={draft.booking_mode === "once"}
-              onClick={() => update("booking_mode", "once")}
-            >
-              <span className="block">Trajet ponctuel</span>
-              <span className="mt-1 block text-base font-normal text-[var(--muted)]">
-                Une seule date — consultation, examen, sortie…
-              </span>
-            </button>
-            <button
-              type="button"
-              className="patient-choice"
-              data-selected={draft.booking_mode === "iterative"}
-              aria-pressed={draft.booking_mode === "iterative"}
-              onClick={() => update("booking_mode", "iterative")}
-            >
-              <span className="block">Trajets itératifs</span>
-              <span className="mt-1 block text-base font-normal text-[var(--muted)]">
-                Dialyse, chimiothérapie… les mêmes jours chaque semaine
-              </span>
-            </button>
-          </fieldset>
-        ) : null}
-
-        {step === "company" ? (
-          <fieldset className="space-y-3">
-            <legend className="patient-label">Qui doit venir ?</legend>
-            {companies.length > 1 ? (
-              <button
-                type="button"
-                className="patient-choice"
-                data-selected={draft.dispatch_mode === "partners"}
-                aria-pressed={draft.dispatch_mode === "partners"}
-                onClick={() => update("dispatch_mode", "partners")}
-              >
-                <span className="block">Pas de préférence</span>
-                <span className="mt-1 block text-base font-normal text-[var(--muted)]">
-                  Envoyer aux sociétés partenaires Bibulance — la première qui
-                  accepte prend en charge
-                </span>
-              </button>
-            ) : null}
-
-            <p className="pt-1 text-base font-bold text-[var(--muted)]">
-              Ou choisir une société
-            </p>
-            {companies.map((c) => (
-              <button
-                key={c.id}
-                type="button"
-                className="patient-choice"
-                data-selected={
-                  draft.dispatch_mode === "specific" &&
-                  draft.company_id === c.id
-                }
-                aria-pressed={
-                  draft.dispatch_mode === "specific" &&
-                  draft.company_id === c.id
-                }
-                onClick={() => {
-                  setDraft((d) => ({
-                    ...d,
-                    dispatch_mode: "specific",
-                    company_id: c.id,
-                  }));
-                  setError(null);
-                }}
-              >
-                {c.name}
-              </button>
-            ))}
-          </fieldset>
-        ) : null}
-
-        {step === "depart" ? (
-          <AddressAutocomplete
-            id={`${formId}-depart`}
-            label="Adresse de départ"
-            value={draft.depart_address}
-            onChange={(next) => update("depart_address", next)}
-            placeholder="Commencez à taper : 12 rue Victor Hugo, Paris"
-            hint="Tapez puis choisissez une suggestion pour une adresse complète et fiable."
-            required
-          />
-        ) : null}
-
-        {step === "arrive" ? (
-          <AddressAutocomplete
-            id={`${formId}-arrive`}
-            label="Adresse d’arrivée"
-            value={draft.arrival_address}
-            onChange={(next) => update("arrival_address", next)}
-            placeholder="Commencez à taper : 47 boulevard de l’Hôpital, Paris"
-            hint="Tapez puis choisissez une suggestion. Vous pouvez aussi saisir à la main."
-            required
-          />
-        ) : null}
-
-        {step === "when" && draft.booking_mode === "once" ? (
-          <div className="space-y-4">
-            <div>
-              <label className="patient-label" htmlFor={`${formId}-date`}>
-                Date du rendez-vous
-              </label>
-              <input
-                id={`${formId}-date`}
-                className="patient-input"
-                type="date"
-                value={draft.date}
-                min={today}
-                onChange={(e) => {
-                  const nextDate = e.target.value;
-                  setDraft((d) => {
-                    let nextTime = d.time;
-                    if (
-                      nextDate === today &&
-                      isDateTimeInPast(nextDate, nextTime)
-                    ) {
-                      nextTime = suggestDefaultTime();
-                    }
-                    return { ...d, date: nextDate, time: nextTime };
-                  });
-                  setError(null);
-                }}
-                required
-              />
-            </div>
-            <div>
-              <label className="patient-label" htmlFor={`${formId}-time`}>
-                Heure du rendez-vous
-              </label>
-              <input
-                id={`${formId}-time`}
-                className="patient-input"
-                type="time"
-                value={draft.time}
-                min={draft.date === today ? minTimeToday : undefined}
-                onChange={(e) => update("time", e.target.value)}
-                required
-              />
-              <p className="mt-2 text-base text-[var(--muted)]">
-                {draft.date === today
-                  ? `Aujourd’hui, choisissez une heure à partir de ${formatTimeFr(minTimeToday)}.`
-                  : "Nous viendrons vous chercher un peu avant cette heure."}
-              </p>
-            </div>
-            <fieldset className="space-y-3">
-              <legend className="patient-label">Type de trajet</legend>
-              <button
-                type="button"
-                className="patient-choice"
-                data-selected={draft.trip_type === "aller"}
-                aria-pressed={draft.trip_type === "aller"}
-                onClick={() => update("trip_type", "aller")}
-              >
-                Aller simple
-              </button>
-              <button
-                type="button"
-                className="patient-choice"
-                data-selected={draft.trip_type === "aller_retour"}
-                aria-pressed={draft.trip_type === "aller_retour"}
-                onClick={() => update("trip_type", "aller_retour")}
-              >
-                Aller-retour
-              </button>
-            </fieldset>
+        {step === "route" ? (
+          <div className="space-y-5">
+            <AddressAutocomplete
+              id={`${formId}-depart`}
+              label="Adresse de départ"
+              value={draft.depart_address}
+              onChange={(next) => update("depart_address", next)}
+              placeholder="Ex. : 12 rue Victor Hugo, Paris"
+              hint="Tapez puis choisissez une suggestion."
+              required
+            />
+            <AddressAutocomplete
+              id={`${formId}-arrive`}
+              label="Adresse d’arrivée"
+              value={draft.arrival_address}
+              onChange={(next) => update("arrival_address", next)}
+              placeholder="Ex. : Pitié-Salpêtrière ou 47 bd de l’Hôpital"
+              hint="Hôpital ou clinique : tapez juste le nom. Sinon, l’adresse complète."
+              mode="destination"
+              required
+            />
           </div>
         ) : null}
 
-        {step === "when" && draft.booking_mode === "iterative" ? (
-          <div className="space-y-4">
-            {DAYS.map((day) => {
-              const slot = draft.days[day];
-              return (
-                <div
-                  key={day}
-                  className="patient-card space-y-3"
-                  data-active={slot.active}
-                >
+        {step === "when" ? (
+          <div className="space-y-5">
+            <fieldset className="space-y-3">
+              <legend className="patient-label">Type de demande</legend>
+              <button
+                type="button"
+                className="patient-choice"
+                data-selected={draft.booking_mode === "once"}
+                aria-pressed={draft.booking_mode === "once"}
+                onClick={() => update("booking_mode", "once")}
+              >
+                <span className="block">Trajet ponctuel</span>
+                <span className="mt-1 block text-base font-normal text-[var(--muted)]">
+                  Une seule date — consultation, examen, sortie…
+                </span>
+              </button>
+              <button
+                type="button"
+                className="patient-choice"
+                data-selected={draft.booking_mode === "iterative"}
+                aria-pressed={draft.booking_mode === "iterative"}
+                onClick={() => update("booking_mode", "iterative")}
+              >
+                <span className="block">Trajets itératifs</span>
+                <span className="mt-1 block text-base font-normal text-[var(--muted)]">
+                  Dialyse, chimiothérapie… les mêmes jours chaque semaine
+                </span>
+              </button>
+            </fieldset>
+
+            {draft.booking_mode === "once" ? (
+              <div className="space-y-4">
+                <div>
+                  <label className="patient-label" htmlFor={`${formId}-date`}>
+                    Date du rendez-vous
+                  </label>
+                  <input
+                    id={`${formId}-date`}
+                    className="patient-input"
+                    type="date"
+                    value={draft.date}
+                    min={today}
+                    onChange={(e) => {
+                      const nextDate = e.target.value;
+                      setDraft((d) => {
+                        let nextTime = d.time;
+                        if (
+                          nextDate === today &&
+                          isDateTimeInPast(nextDate, nextTime)
+                        ) {
+                          nextTime = suggestDefaultTime();
+                        }
+                        return { ...d, date: nextDate, time: nextTime };
+                      });
+                      setError(null);
+                    }}
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="patient-label" htmlFor={`${formId}-time`}>
+                    Heure du rendez-vous
+                  </label>
+                  <input
+                    id={`${formId}-time`}
+                    className="patient-input"
+                    type="time"
+                    value={draft.time}
+                    min={draft.date === today ? minTimeToday : undefined}
+                    onChange={(e) => update("time", e.target.value)}
+                    required
+                  />
+                  <p className="mt-2 text-base text-[var(--muted)]">
+                    {draft.date === today
+                      ? `Aujourd’hui, choisissez une heure à partir de ${formatTimeFr(minTimeToday)}.`
+                      : "Nous viendrons vous chercher un peu avant cette heure."}
+                  </p>
+                </div>
+                <fieldset className="space-y-3">
+                  <legend className="patient-label">Aller ou aller-retour</legend>
                   <button
                     type="button"
                     className="patient-choice"
-                    data-selected={slot.active}
-                    aria-pressed={slot.active}
-                    onClick={() => updateDay(day, { active: !slot.active })}
+                    data-selected={draft.trip_type === "aller"}
+                    aria-pressed={draft.trip_type === "aller"}
+                    onClick={() => update("trip_type", "aller")}
                   >
-                    {day}
+                    Aller simple
                   </button>
-                  {slot.active ? (
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <div>
-                        <label
-                          className="patient-label"
-                          htmlFor={`${formId}-${day}-time`}
-                        >
-                          Heure
-                        </label>
-                        <input
-                          id={`${formId}-${day}-time`}
-                          className="patient-input"
-                          type="time"
-                          value={slot.time}
-                          onChange={(e) =>
-                            updateDay(day, { time: e.target.value })
-                          }
-                        />
-                      </div>
-                      <div>
-                        <label
-                          className="patient-label"
-                          htmlFor={`${formId}-${day}-trip`}
-                        >
-                          Trajet
-                        </label>
-                        <select
-                          id={`${formId}-${day}-trip`}
-                          className="patient-input"
-                          value={slot.trip_type}
-                          onChange={(e) =>
-                            updateDay(day, {
-                              trip_type: e.target.value as
-                                | "aller"
-                                | "aller_retour",
-                            })
-                          }
-                        >
-                          <option value="aller">Aller</option>
-                          <option value="aller_retour">Aller-retour</option>
-                        </select>
-                      </div>
+                  <button
+                    type="button"
+                    className="patient-choice"
+                    data-selected={draft.trip_type === "aller_retour"}
+                    aria-pressed={draft.trip_type === "aller_retour"}
+                    onClick={() => update("trip_type", "aller_retour")}
+                  >
+                    Aller-retour
+                  </button>
+                </fieldset>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {DAYS.map((day) => {
+                  const slot = draft.days[day];
+                  return (
+                    <div
+                      key={day}
+                      className="patient-card space-y-3"
+                      data-active={slot.active}
+                    >
+                      <button
+                        type="button"
+                        className="patient-choice"
+                        data-selected={slot.active}
+                        aria-pressed={slot.active}
+                        onClick={() => updateDay(day, { active: !slot.active })}
+                      >
+                        {day}
+                      </button>
+                      {slot.active ? (
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <div>
+                            <label
+                              className="patient-label"
+                              htmlFor={`${formId}-${day}-time`}
+                            >
+                              Heure
+                            </label>
+                            <input
+                              id={`${formId}-${day}-time`}
+                              className="patient-input"
+                              type="time"
+                              value={slot.time}
+                              onChange={(e) =>
+                                updateDay(day, { time: e.target.value })
+                              }
+                            />
+                          </div>
+                          <div>
+                            <label
+                              className="patient-label"
+                              htmlFor={`${formId}-${day}-trip`}
+                            >
+                              Trajet
+                            </label>
+                            <select
+                              id={`${formId}-${day}-trip`}
+                              className="patient-input"
+                              value={slot.trip_type}
+                              onChange={(e) =>
+                                updateDay(day, {
+                                  trip_type: e.target.value as
+                                    | "aller"
+                                    | "aller_retour",
+                                })
+                              }
+                            >
+                              <option value="aller">Aller</option>
+                              <option value="aller_retour">Aller-retour</option>
+                            </select>
+                          </div>
+                        </div>
+                      ) : null}
                     </div>
-                  ) : null}
+                  );
+                })}
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <label className="patient-label" htmlFor={`${formId}-end`}>
+                      Jusqu’au (optionnel)
+                    </label>
+                    <input
+                      id={`${formId}-end`}
+                      className="patient-input"
+                      type="date"
+                      min={today}
+                      value={draft.end_date}
+                      onChange={(e) => update("end_date", e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label className="patient-label" htmlFor={`${formId}-count`}>
+                      Nombre de trajets
+                    </label>
+                    <input
+                      id={`${formId}-count`}
+                      className="patient-input"
+                      type="number"
+                      min={1}
+                      max={40}
+                      value={draft.count}
+                      onChange={(e) => update("count", e.target.value)}
+                    />
+                  </div>
                 </div>
-              );
-            })}
 
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div>
-                <label className="patient-label" htmlFor={`${formId}-end`}>
-                  Jusqu’au (optionnel)
-                </label>
-                <input
-                  id={`${formId}-end`}
-                  className="patient-input"
-                  type="date"
-                  min={today}
-                  value={draft.end_date}
-                  onChange={(e) => update("end_date", e.target.value)}
-                />
+                {previewOccurrences.length > 0 ? (
+                  <IterativeTripList
+                    occurrences={previewOccurrences}
+                    title="Aperçu des trajets"
+                    maxVisible={6}
+                  />
+                ) : null}
               </div>
-              <div>
-                <label className="patient-label" htmlFor={`${formId}-count`}>
-                  Nombre de trajets
-                </label>
-                <input
-                  id={`${formId}-count`}
-                  className="patient-input"
-                  type="number"
-                  min={1}
-                  max={40}
-                  value={draft.count}
-                  onChange={(e) => update("count", e.target.value)}
-                />
-              </div>
-            </div>
-
-            {previewOccurrences.length > 0 ? (
-              <IterativeTripList
-                occurrences={previewOccurrences}
-                title="Aperçu des trajets"
-                maxVisible={6}
-              />
-            ) : null}
+            )}
           </div>
-        ) : null}
-
-        {step === "who" ? (
-          <fieldset className="space-y-3">
-            <legend className="patient-label">Je commande pour…</legend>
-            <button
-              type="button"
-              className="patient-choice"
-              data-selected={!draft.ordered_for_someone}
-              aria-pressed={!draft.ordered_for_someone}
-              onClick={() => {
-                setDraft((d) => ({
-                  ...d,
-                  ordered_for_someone: false,
-                  firstname: selfFirst || d.firstname,
-                  lastname: selfLast || d.lastname,
-                }));
-                setError(null);
-              }}
-            >
-              <span className="block">Moi-même</span>
-              <span className="mt-1 block text-base font-normal text-[var(--muted)]">
-                Je suis le patient transporté
-              </span>
-            </button>
-            <button
-              type="button"
-              className="patient-choice"
-              data-selected={draft.ordered_for_someone}
-              aria-pressed={draft.ordered_for_someone}
-              onClick={() => {
-                setDraft((d) => ({
-                  ...d,
-                  ordered_for_someone: true,
-                  relative_firstname:
-                    d.relative_firstname || selfFirst || d.firstname,
-                  relative_lastname:
-                    d.relative_lastname || selfLast || d.lastname,
-                  firstname:
-                    d.ordered_for_someone || d.firstname !== selfFirst
-                      ? d.firstname
-                      : "",
-                  lastname:
-                    d.ordered_for_someone || d.lastname !== selfLast
-                      ? d.lastname
-                      : "",
-                }));
-                setError(null);
-              }}
-            >
-              <span className="block">Pour un proche</span>
-              <span className="mt-1 block text-base font-normal text-[var(--muted)]">
-                Parents, grands-parents, aidant… je commande pour quelqu’un
-                d’autre
-              </span>
-            </button>
-          </fieldset>
         ) : null}
 
         {step === "patient" ? (
           <div className="space-y-5">
+            <fieldset className="space-y-3">
+              <legend className="patient-label">Je commande pour…</legend>
+              <button
+                type="button"
+                className="patient-choice"
+                data-selected={!draft.ordered_for_someone}
+                aria-pressed={!draft.ordered_for_someone}
+                onClick={() => {
+                  setDraft((d) => ({
+                    ...d,
+                    ordered_for_someone: false,
+                    firstname: selfFirst || d.firstname,
+                    lastname: selfLast || d.lastname,
+                  }));
+                  setError(null);
+                }}
+              >
+                <span className="block">Moi-même</span>
+                <span className="mt-1 block text-base font-normal text-[var(--muted)]">
+                  Je suis le patient transporté
+                </span>
+              </button>
+              <button
+                type="button"
+                className="patient-choice"
+                data-selected={draft.ordered_for_someone}
+                aria-pressed={draft.ordered_for_someone}
+                onClick={() => {
+                  setDraft((d) => ({
+                    ...d,
+                    ordered_for_someone: true,
+                    relative_firstname:
+                      d.relative_firstname || selfFirst || d.firstname,
+                    relative_lastname:
+                      d.relative_lastname || selfLast || d.lastname,
+                    firstname:
+                      d.ordered_for_someone || d.firstname !== selfFirst
+                        ? d.firstname
+                        : "",
+                    lastname:
+                      d.ordered_for_someone || d.lastname !== selfLast
+                        ? d.lastname
+                        : "",
+                  }));
+                  setError(null);
+                }}
+              >
+                <span className="block">Pour un proche</span>
+                <span className="mt-1 block text-base font-normal text-[var(--muted)]">
+                  Parents, grands-parents, aidant…
+                </span>
+              </button>
+            </fieldset>
+
             {draft.ordered_for_someone ? (
               <>
                 <div className="patient-card space-y-4">
@@ -1199,7 +1125,7 @@ export function BookingWizard({
           </div>
         ) : null}
 
-        {step === "vehicle" ? (
+        {step === "options" ? (
           <div className="space-y-5">
             <fieldset className="space-y-3">
               <legend className="patient-label">Type de véhicule</legend>
@@ -1238,7 +1164,10 @@ export function BookingWizard({
                   ["oxygene", "Oxygène"],
                 ] as const
               ).map(([key, label]) => (
-                <label key={key} className="patient-choice flex cursor-pointer items-center gap-3">
+                <label
+                  key={key}
+                  className="patient-choice flex cursor-pointer items-center gap-3"
+                >
                   <input
                     type="checkbox"
                     className="size-5 accent-[var(--accent)]"
@@ -1252,6 +1181,49 @@ export function BookingWizard({
                   />
                   <span>{label}</span>
                 </label>
+              ))}
+            </fieldset>
+
+            <fieldset className="space-y-3">
+              <legend className="patient-label">Société d’ambulances</legend>
+              {companies.length > 1 ? (
+                <button
+                  type="button"
+                  className="patient-choice"
+                  data-selected={draft.dispatch_mode === "partners"}
+                  aria-pressed={draft.dispatch_mode === "partners"}
+                  onClick={() => update("dispatch_mode", "partners")}
+                >
+                  <span className="block">Pas de préférence</span>
+                  <span className="mt-1 block text-base font-normal text-[var(--muted)]">
+                    La première société partenaire qui accepte prend en charge
+                  </span>
+                </button>
+              ) : null}
+              {companies.map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  className="patient-choice"
+                  data-selected={
+                    draft.dispatch_mode === "specific" &&
+                    draft.company_id === c.id
+                  }
+                  aria-pressed={
+                    draft.dispatch_mode === "specific" &&
+                    draft.company_id === c.id
+                  }
+                  onClick={() => {
+                    setDraft((d) => ({
+                      ...d,
+                      dispatch_mode: "specific",
+                      company_id: c.id,
+                    }));
+                    setError(null);
+                  }}
+                >
+                  {c.name}
+                </button>
               ))}
             </fieldset>
           </div>
