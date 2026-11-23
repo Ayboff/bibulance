@@ -129,7 +129,10 @@ export function AddressAutocomplete({
     }
   }
 
-  const showList = open && (suggestions.length > 0 || loading);
+  const queried = value.trim().length >= 3;
+  const showList = open && (suggestions.length > 0 || loading || (queried && !loading));
+  const hintId = `${id}-hint`;
+  const errorId = `${id}-error`;
 
   return (
     <div ref={rootRef} className="relative">
@@ -152,21 +155,36 @@ export function AddressAutocomplete({
         placeholder={placeholder}
         required={required}
         role="combobox"
+        aria-haspopup="listbox"
         aria-expanded={showList}
         aria-controls={listboxId}
         aria-autocomplete="list"
+        aria-describedby={[hint ? hintId : null, error ? errorId : null]
+          .filter(Boolean)
+          .join(" ") || undefined}
         aria-activedescendant={
           highlight >= 0 ? `${listboxId}-option-${highlight}` : undefined
         }
       />
       {hint ? (
-        <p className="mt-2 text-base text-[var(--muted)]">{hint}</p>
+        <p id={hintId} className="mt-2 text-base text-[var(--muted)]">
+          {hint}
+        </p>
       ) : null}
       {loading ? (
         <p className="mt-2 text-sm text-[var(--muted)]">Recherche d’adresses…</p>
       ) : null}
       {error ? (
-        <p className="mt-2 text-sm text-[var(--danger)]">{error}</p>
+        <p id={errorId} className="mt-2 text-sm text-[var(--danger)]">
+          {error}
+        </p>
+      ) : null}
+
+      {showList && !loading && suggestions.length === 0 && queried ? (
+        <p className="mt-2 text-sm text-[var(--muted)]" role="status">
+          Aucune adresse trouvée — vous pouvez saisir l’adresse complète à la
+          main.
+        </p>
       ) : null}
 
       {showList && suggestions.length > 0 ? (

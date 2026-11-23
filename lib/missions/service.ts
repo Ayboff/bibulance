@@ -371,6 +371,20 @@ export async function updateMission(
   }
 
   if (input.assigned_vehicle_id) {
+    const { data: vehicle, error: vehicleError } = await client
+      .from("vehicles")
+      .select("id, company_id, is_active")
+      .eq("id", input.assigned_vehicle_id)
+      .maybeSingle();
+    if (vehicleError) throw new ApiError(500, vehicleError.message);
+    if (
+      !vehicle ||
+      vehicle.company_id !== session.activeCompanyId ||
+      vehicle.is_active === false
+    ) {
+      throw new ApiError(400, "Véhicule invalide pour cette société");
+    }
+
     patch.assigned_at = now;
     patch.is_locked = true;
     // Assigning a vehicle implies the company takes the mission.
@@ -424,14 +438,27 @@ export async function updateMission(
     );
   }
 
-  const { data, error } = await client
-    .from("missions")
-    .update(patch)
-    .eq("id", missionId)
-    .select("*")
-    .single();
+  const claimingAccept =
+    input.accepted_bibulance === true && !current.accepted_bibulance;
+
+  // Optimistic claim: only one concurrent accept wins (broadcast race).
+  let builder = client.from("missions").update(patch).eq("id", missionId);
+  if (claimingAccept) {
+    builder = builder.eq("accepted_bibulance", false);
+  }
+
+  const { data, error } = await builder.select("*").maybeSingle();
 
   if (error) throw new ApiError(400, error.message);
+  if (!data) {
+    if (claimingAccept) {
+      throw new ApiError(
+        409,
+        "Cette mission vient d’être prise en charge par une autre action concurrente",
+      );
+    }
+    throw new ApiError(404, "Mission introuvable");
+  }
 
   if (data.accepted_bibulance && !current.accepted_bibulance) {
     await cancelBroadcastSiblings(data);

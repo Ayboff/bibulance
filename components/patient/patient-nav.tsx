@@ -14,7 +14,7 @@ export function PatientNav() {
 
   return (
     <nav
-      className="sticky bottom-0 z-20 border-t-2 border-[var(--border)] bg-[var(--card)]"
+      className="sticky bottom-0 z-20 border-t-2 border-[var(--border)] bg-[var(--card)] pb-[env(safe-area-inset-bottom,0px)]"
       aria-label="Navigation principale"
     >
       <ul className="mx-auto flex max-w-lg">
