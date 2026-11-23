@@ -11,34 +11,23 @@ type HomeLandingProps = {
   isLoggedIn: boolean;
 };
 
-const TESTIMONIALS = [
+/** Pain points & outcomes — no fabricated customer quotes (trust for sales demos). */
+const FIELD_TRUTHS = [
   {
-    quote:
-      "Une seule file pour tout. Nos régulateurs gagnent du temps dès le premier jour.",
-    name: "Claire Moreau",
-    role: "Responsable régulation",
-    org: "Ambulance Seine Est",
+    title: "Trop d’appels, trop peu d’info",
+    text: "Le patient répète l’adresse au téléphone. Le régulateur retape. Bibulance structure la demande dès l’écran.",
   },
   {
-    quote:
-      "J’ai commandé pour mon père sans appeler trois sociétés. Clair, rapide, rassurant.",
-    name: "Amine Benali",
-    role: "Particulier",
-    org: "Île-de-France",
+    title: "Plusieurs logiciels, une seule journée",
+    text: "Ambléa, PTAH, SPS… et le téléphone. L’objectif : une file unique pour décider sans zappez d’outil.",
   },
   {
-    quote:
-      "Plateformes + patients Bibulance au même endroit. On assigne, on confirme, c’est réglé.",
-    name: "Sophie Renaud",
-    role: "Directrice d’exploitation",
-    org: "Horizon Ambulances",
+    title: "Dialyse & itératifs",
+    text: "Les séries se planifient une fois. Moins de re-saisie chaque semaine pour le patient et pour vous.",
   },
   {
-    quote:
-      "Mes trajets de dialyse sont planifiés une fois. Je n’ai plus à tout recommencer chaque semaine.",
-    name: "Marie Lefèvre",
-    role: "Patiente",
-    org: "Essonne",
+    title: "Acceptation claire",
+    text: "Accepter, affecter un véhicule, confirmer : le patient voit où en est sa demande, sans jargon.",
   },
 ] as const;
 
@@ -311,31 +300,26 @@ export function HomeLanding({
         </div>
       </section>
 
-      {/* Testimonials */}
+      {/* Field truths (honest — no fake reviews) */}
       <section className="relative z-10 border-t border-[var(--border)] bg-white">
         <div className="mx-auto max-w-6xl px-6 py-16 sm:py-20">
           <h2 className="font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight text-ink sm:text-4xl">
-            Ils ont essayé Bibulance
+            Ce que le terrain nous demande
           </h2>
+          <p className="mt-3 max-w-2xl text-lg text-muted">
+            Pas d’avis inventés : les problèmes réels des sociétés et des
+            patients — et ce que Bibulance vise à résoudre.
+          </p>
           <div className="mt-10 grid gap-8 sm:grid-cols-2">
-            {TESTIMONIALS.map((t) => (
-              <figure key={t.name} className="border-l-2 border-accent pl-5">
-                <div className="flex gap-0.5 text-accent" aria-label="5 étoiles">
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <span key={i} aria-hidden>
-                      ★
-                    </span>
-                  ))}
-                </div>
-                <blockquote className="mt-3 text-base leading-relaxed text-ink">
-                  « {t.quote} »
-                </blockquote>
-                <figcaption className="mt-3 text-sm text-muted">
-                  <span className="font-semibold text-ink">{t.name}</span>
-                  {" · "}
-                  {t.role} · {t.org}
-                </figcaption>
-              </figure>
+            {FIELD_TRUTHS.map((t) => (
+              <div key={t.title} className="border-l-2 border-accent pl-5">
+                <h3 className="font-[family-name:var(--font-display)] text-xl font-semibold text-ink">
+                  {t.title}
+                </h3>
+                <p className="mt-2 text-base leading-relaxed text-muted">
+                  {t.text}
+                </p>
+              </div>
             ))}
           </div>
         </div>
