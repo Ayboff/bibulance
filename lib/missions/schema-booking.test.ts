@@ -18,13 +18,20 @@ const base = {
 };
 
 describe("createPatientMissionSchema regression", () => {
-  it("requires a callable phone", () => {
+  it("requires a phone with at least 10 digits", () => {
     expect(createPatientMissionSchema.safeParse({ ...base, phone: "" }).success).toBe(
       false,
     );
     expect(
       createPatientMissionSchema.safeParse({ ...base, phone: "abcdef" }).success,
     ).toBe(false);
+    expect(
+      createPatientMissionSchema.safeParse({ ...base, phone: "061234567" }).success,
+    ).toBe(false); // 9 digits
+    expect(
+      createPatientMissionSchema.safeParse({ ...base, phone: "06 12 34 56 78" })
+        .success,
+    ).toBe(true); // 10 digits
     expect(createPatientMissionSchema.safeParse(base).success).toBe(true);
   });
 

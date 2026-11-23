@@ -341,8 +341,8 @@ export function BookingWizard({
           if (draft.relative_lastname.trim().length < 1) {
             return "Indiquez votre nom (demandeur).";
           }
-          if (draft.relative_phone.trim().length < 6) {
-            return "Indiquez votre téléphone (demandeur).";
+          if (draft.relative_phone.replace(/\D/g, "").length < 10) {
+            return "Indiquez votre téléphone (demandeur) — 10 chiffres minimum.";
           }
           if (draft.firstname.trim().length < 1) {
             return "Indiquez le prénom du patient transporté.";
@@ -353,11 +353,14 @@ export function BookingWizard({
           if (!draft.patient_birthdate) {
             return "Indiquez la date de naissance du patient.";
           }
+          if (draft.phone.replace(/\D/g, "").length < 10) {
+            return "Indiquez le téléphone du patient (10 chiffres minimum).";
+          }
         } else {
           if (draft.firstname.trim().length < 1) return "Indiquez le prénom.";
           if (draft.lastname.trim().length < 1) return "Indiquez le nom.";
-          if (draft.phone.replace(/\D/g, "").length < 6) {
-            return "Indiquez un numéro de téléphone joignable (6 chiffres min.).";
+          if (draft.phone.replace(/\D/g, "").length < 10) {
+            return "Indiquez un numéro de téléphone joignable (10 chiffres minimum).";
           }
         }
         const nirError = nirValidationMessage(draft.patient_social_security);
@@ -1035,12 +1038,16 @@ export function BookingWizard({
                       className="patient-label"
                       htmlFor={`${formId}-rel-phone`}
                     >
-                      Votre téléphone
+                      Votre téléphone (obligatoire)
                     </label>
                     <input
                       id={`${formId}-rel-phone`}
                       className="patient-input"
                       type="tel"
+                      inputMode="tel"
+                      autoComplete="tel"
+                      required
+                      placeholder="06 12 34 56 78"
                       value={draft.relative_phone}
                       onChange={(e) =>
                         update("relative_phone", e.target.value)
@@ -1111,12 +1118,16 @@ export function BookingWizard({
                       className="patient-label"
                       htmlFor={`${formId}-phone`}
                     >
-                      Téléphone du patient (optionnel)
+                      Téléphone du patient (obligatoire)
                     </label>
                     <input
                       id={`${formId}-phone`}
                       className="patient-input"
                       type="tel"
+                      inputMode="tel"
+                      autoComplete="tel"
+                      required
+                      placeholder="06 12 34 56 78"
                       value={draft.phone}
                       onChange={(e) => update("phone", e.target.value)}
                       inputMode="tel"
@@ -1154,12 +1165,16 @@ export function BookingWizard({
                 </div>
                 <div>
                   <label className="patient-label" htmlFor={`${formId}-phone`}>
-                    Téléphone (recommandé)
+                    Téléphone (obligatoire)
                   </label>
                   <input
                     id={`${formId}-phone`}
                     className="patient-input"
                     type="tel"
+                    inputMode="tel"
+                    autoComplete="tel"
+                    required
+                    placeholder="06 12 34 56 78"
                     value={draft.phone}
                     onChange={(e) => update("phone", e.target.value)}
                     autoComplete="tel"
