@@ -1,3 +1,4 @@
+import { displayNirSafe } from "@/lib/privacy/nir-display";
 import type { Json, Mission } from "@/types/database";
 
 export type DispatchMode = "specific" | "partners";
@@ -51,7 +52,13 @@ export function getMissionBookingMeta(
     relative_relation: asString(p.relative_relation),
     relative_phone: asString(p.relative_phone),
     patient_birthdate: asString(p.patient_birthdate),
-    patient_social_security: asString(p.patient_social_security),
+    // Always masked for UI — never expose full NIR in boards/logs consumers.
+    patient_social_security: (() => {
+      const raw = asString(p.patient_social_security);
+      if (!raw) return null;
+      const masked = displayNirSafe(raw);
+      return masked || null;
+    })(),
   };
 }
 

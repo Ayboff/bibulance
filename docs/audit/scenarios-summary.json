@@ -1,0 +1,20 @@
+{
+  "total": 12544,
+  "uniqueIds": 12544,
+  "byCategory": {
+    "A_patient_booking": 1400,
+    "B_patient_followup": 640,
+    "C_regulator": 2880,
+    "D_exceptional": 3840,
+    "E_security": 1920,
+    "F_connectors": 840,
+    "G_a11y": 1024
+  },
+  "byExecutable": {
+    "schema": 3128,
+    "status_copy": 640,
+    "transitions": 3072,
+    "documented": 4480,
+    "webhook": 1224
+  }
+}

@@ -155,10 +155,10 @@ POST https://app.bibulance.fr/api/webhooks/connectors/{platform}
 Headers :
 
 - `x-company-id: <uuid société>`
-- `x-bibulance-signature: <sha256 hex of secret+rawBody>` (si secret configuré)
+- `x-bibulance-signature: <sha256 hex of secret+rawBody>` (**obligatoire** sauf `ALLOW_INSECURE_WEBHOOKS=1` en dev)
 - `Content-Type: application/json`
 
-Configurer le secret dans `/pro/connectors`.
+Configurer le secret dans `/pro/connectors`. Sans secret webhook, les POST sont rejetés (401).
 
 ## 6. Smoke tests post-deploy
 

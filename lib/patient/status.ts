@@ -61,10 +61,11 @@ export function isTerminalMissionStatus(status: string): boolean {
 /** Active trips that still belong in the « À venir » feed. */
 export function isActiveUpcomingMission(
   mission: Pick<Mission, "status" | "rdv_time">,
-  nowMs = Date.now(),
+  _nowMs = Date.now(),
 ): boolean {
-  if (isTerminalMissionStatus(mission.status)) return false;
-  return Date.parse(mission.rdv_time) >= nowMs - 60_000;
+  // Non-terminal missions stay upcoming even if RDV is delayed / overdue.
+  void _nowMs;
+  return !isTerminalMissionStatus(mission.status);
 }
 
 export function patientStatus(status: string) {

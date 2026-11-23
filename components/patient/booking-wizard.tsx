@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useId, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 
 import { AddressAutocomplete } from "@/components/patient/address-autocomplete";
 import {
@@ -10,6 +10,8 @@ import {
   parisNowParts,
   suggestDefaultTime,
 } from "@/lib/missions/booking-meta";
+
+const DRAFT_STORAGE_KEY = "bibulance.booking.draft.v1";
 
 type Company = { id: string; name: string; slug: string };
 
@@ -179,6 +181,7 @@ export function BookingWizard({
   const [stepIndex, setStepIndex] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const busyRef = useRef(false);
   const [draft, setDraft] = useState<Draft>({
     booking_mode: "once",
     dispatch_mode: companies.length > 1 ? "partners" : "specific",
@@ -208,6 +211,50 @@ export function BookingWizard({
       oxygene: false,
     },
   });
+  const [draftHydrated, setDraftHydrated] = useState(false);
+  const [draftRestoredNotice, setDraftRestoredNotice] = useState(false);
+
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(DRAFT_STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw) as Partial<Draft> & {
+          stepIndex?: number;
+        };
+        const { patient_social_security: _nir, stepIndex: savedStep, ...rest } =
+          parsed;
+        setDraft((prev) => ({
+          ...prev,
+          ...rest,
+          patient_social_security: "",
+        }));
+        if (
+          typeof savedStep === "number" &&
+          savedStep >= 0 &&
+          savedStep < STEPS.length
+        ) {
+          setStepIndex(savedStep);
+        }
+        setDraftRestoredNotice(true);
+      }
+    } catch {
+      /* ignore */
+    }
+    setDraftHydrated(true);
+  }, []);
+
+  useEffect(() => {
+    if (!draftHydrated) return;
+    try {
+      const { patient_social_security: _nir, ...safe } = draft;
+      sessionStorage.setItem(
+        DRAFT_STORAGE_KEY,
+        JSON.stringify({ ...safe, stepIndex }),
+      );
+    } catch {
+      // ignore quota / private mode
+    }
+  }, [draft, stepIndex, draftHydrated]);
 
   const selfFirst = defaultName?.first ?? "";
   const selfLast = defaultName?.last ?? "";
@@ -309,6 +356,9 @@ export function BookingWizard({
         } else {
           if (draft.firstname.trim().length < 1) return "Indiquez le prénom.";
           if (draft.lastname.trim().length < 1) return "Indiquez le nom.";
+          if (draft.phone.replace(/\D/g, "").length < 6) {
+            return "Indiquez un numéro de téléphone joignable (6 chiffres min.).";
+          }
         }
         const nirError = nirValidationMessage(draft.patient_social_security);
         if (nirError) return nirError;
@@ -328,15 +378,38 @@ export function BookingWizard({
       return;
     }
     setError(null);
+    setDraftRestoredNotice(false);
     setStepIndex((i) => Math.min(i + 1, total - 1));
   }
 
   function goBack() {
     setError(null);
+    setDraftRestoredNotice(false);
     setStepIndex((i) => Math.max(i - 1, 0));
   }
 
+  function goToStep(index: number) {
+    if (index < 0 || index >= total || index === stepIndex || busy) return;
+    // Only allow jumping backward, or forward one step after validation.
+    if (index < stepIndex) {
+      setError(null);
+      setDraftRestoredNotice(false);
+      setStepIndex(index);
+      return;
+    }
+    if (index === stepIndex + 1) {
+      goNext();
+    }
+  }
+
+  useEffect(() => {
+    const el = document.getElementById("contenu-principal");
+    el?.scrollTo?.({ top: 0, behavior: "smooth" });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [stepIndex]);
+
   async function submit() {
+    if (busyRef.current) return;
     const msg = validateCurrent();
     if (msg) {
       setError(msg);
@@ -346,6 +419,7 @@ export function BookingWizard({
       setError("Aucune date de transport à envoyer.");
       return;
     }
+    busyRef.current = true;
     setBusy(true);
     setError(null);
     try {
@@ -359,7 +433,7 @@ export function BookingWizard({
           booking_mode: draft.booking_mode,
           firstname: draft.firstname.trim(),
           lastname: draft.lastname.trim(),
-          phone: draft.phone.trim() || undefined,
+          phone: draft.phone.trim(),
           patient_birthdate: draft.patient_birthdate || undefined,
           patient_social_security:
             normalizeNirInput(draft.patient_social_security) || undefined,
@@ -388,6 +462,11 @@ export function BookingWizard({
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "Envoi impossible");
+      try {
+        sessionStorage.removeItem(DRAFT_STORAGE_KEY);
+      } catch {
+        /* ignore */
+      }
       const id = json.mission?.id as string | undefined;
       const count = (json.created_count as number | undefined) ?? 1;
       const qs = new URLSearchParams();
@@ -399,7 +478,7 @@ export function BookingWizard({
       router.refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Une erreur est survenue.");
-    } finally {
+      busyRef.current = false;
       setBusy(false);
     }
   }
@@ -423,13 +502,62 @@ export function BookingWizard({
       ? "Partenaires Bibulance (sans préférence)"
       : companyName;
 
+  const prevStepTitle =
+    stepIndex > 0 ? STEP_TITLES[steps[stepIndex - 1]!] : null;
+
   return (
-    <div className="space-y-6 animate-brand-fade-up">
+    <div className="patient-wizard space-y-5 animate-brand-fade-up">
+      {/* Top chrome: back arrow + step context */}
+      <div className="patient-wizard-top">
+        {stepIndex > 0 ? (
+          <button
+            type="button"
+            className="patient-back-btn"
+            onClick={goBack}
+            disabled={busy}
+            aria-label={
+              prevStepTitle
+                ? `Retour à l’étape précédente : ${prevStepTitle}`
+                : "Retour à l’étape précédente"
+            }
+          >
+            <BackArrowIcon />
+            <span className="patient-back-btn-text">
+              {prevStepTitle ? (
+                <>
+                  <span className="block text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">
+                    Retour
+                  </span>
+                  <span className="block truncate font-bold leading-tight">
+                    {prevStepTitle}
+                  </span>
+                </>
+              ) : (
+                "Retour"
+              )}
+            </span>
+          </button>
+        ) : (
+          <a href="/mes-transports" className="patient-back-btn">
+            <BackArrowIcon />
+            <span className="patient-back-btn-text">
+              <span className="block text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">
+                Quitter
+              </span>
+              <span className="block font-bold leading-tight">Mes trajets</span>
+            </span>
+          </a>
+        )}
+
+        <div className="min-w-0 flex-1 text-right">
+          <p className="patient-step" aria-live="polite">
+            Étape {currentNumber}&nbsp;/&nbsp;{total}
+          </p>
+        </div>
+      </div>
+
       <div>
-        <p className="patient-step" aria-live="polite">
-          Étape {currentNumber} sur {total}
-        </p>
-        <h1 className="patient-title mt-1">{STEP_TITLES[step]}</h1>
+        <h1 className="patient-title">{STEP_TITLES[step]}</h1>
         <p className="patient-lead mt-2">
           {step === "when" && draft.booking_mode === "iterative"
             ? "Choisissez les jours et l’heure de chaque trajet itératif."
@@ -453,6 +581,43 @@ export function BookingWizard({
         />
       </div>
 
+      {/* Clickable step dots — back only / next via Continuer */}
+      <nav aria-label="Étapes de la commande" className="patient-step-rail">
+        {steps.map((s, i) => {
+          const done = i < stepIndex;
+          const current = i === stepIndex;
+          return (
+            <button
+              key={s}
+              type="button"
+              className="patient-step-dot"
+              data-done={done || undefined}
+              data-current={current || undefined}
+              disabled={busy || i > stepIndex}
+              aria-current={current ? "step" : undefined}
+              aria-label={`${STEP_TITLES[s]}${done ? " (terminée)" : current ? " (en cours)" : ""}`}
+              onClick={() => goToStep(i)}
+              title={STEP_TITLES[s]}
+            >
+              {done ? "✓" : i + 1}
+            </button>
+          );
+        })}
+      </nav>
+
+      {draftRestoredNotice ? (
+        <div
+          className="patient-card border-[var(--accent)] text-[var(--ink)]"
+          role="status"
+        >
+          <p className="font-bold">Brouillon restauré</p>
+          <p className="text-sm text-[var(--muted)]">
+            Vos saisies ont été reprises. Le numéro de sécurité sociale n’est
+            jamais mémorisé — ressaisissez-le si besoin.
+          </p>
+        </div>
+      ) : null}
+
       {error ? (
         <div
           className="patient-card border-[var(--danger)] text-[var(--danger)]"
@@ -463,7 +628,7 @@ export function BookingWizard({
         </div>
       ) : null}
 
-      <div className="space-y-4">
+      <div className="space-y-4 pb-28">
         {step === "mode" ? (
           <fieldset className="space-y-3">
             <legend className="patient-label">Votre besoin</legend>
@@ -1172,6 +1337,27 @@ export function BookingWizard({
                     : "Voiture sanitaire (VSL)"
                 }
               />
+              <ReviewRow
+                label="Besoins"
+                value={
+                  Object.entries(draft.specialties)
+                    .filter(([, v]) => v)
+                    .map(([k]) =>
+                      k === "accompagnant"
+                        ? "Accompagnant"
+                        : k === "deambulateur"
+                          ? "Déambulateur"
+                          : k === "fauteuil"
+                            ? "Fauteuil"
+                            : k === "bmr"
+                              ? "BMR"
+                              : k === "oxygene"
+                                ? "Oxygène"
+                                : k,
+                    )
+                    .join(" · ") || "Aucun"
+                }
+              />
             </div>
 
             {draft.booking_mode === "iterative" ? (
@@ -1185,42 +1371,98 @@ export function BookingWizard({
         ) : null}
       </div>
 
-      <div className="flex flex-col gap-3 pt-2">
+      {/* Sticky bottom: ← Retour | Continuer → */}
+      <div className="patient-wizard-footer" role="navigation" aria-label="Navigation du formulaire">
+        {stepIndex > 0 ? (
+          <button
+            type="button"
+            className="patient-btn patient-btn-secondary patient-footer-back"
+            onClick={goBack}
+            disabled={busy}
+          >
+            <BackArrowIcon />
+            <span>Retour</span>
+          </button>
+        ) : (
+          <a
+            href="/mes-transports"
+            className="patient-btn patient-btn-secondary patient-footer-back"
+          >
+            <BackArrowIcon />
+            <span>Quitter</span>
+          </a>
+        )}
+
         {step === "confirm" ? (
           <button
             type="button"
-            className="patient-btn patient-btn-primary w-full"
+            className="patient-btn patient-btn-primary patient-footer-next"
             disabled={busy}
             onClick={() => void submit()}
           >
-            {busy
-              ? "Envoi en cours…"
-              : draft.booking_mode === "iterative"
-                ? `Envoyer ${previewOccurrences.length} trajets itératifs`
-                : "Envoyer ma demande"}
+            <span>
+              {busy
+                ? "Envoi…"
+                : draft.booking_mode === "iterative"
+                  ? `Envoyer (${previewOccurrences.length})`
+                  : "Envoyer"}
+            </span>
           </button>
         ) : (
           <button
             type="button"
-            className="patient-btn patient-btn-primary w-full"
+            className="patient-btn patient-btn-primary patient-footer-next"
             onClick={goNext}
-          >
-            Continuer
-          </button>
-        )}
-
-        {stepIndex > 0 ? (
-          <button
-            type="button"
-            className="patient-btn patient-btn-secondary w-full"
-            onClick={goBack}
             disabled={busy}
           >
-            Retour
+            <span>Continuer</span>
+            <ForwardArrowIcon />
           </button>
-        ) : null}
+        )}
       </div>
     </div>
+  );
+}
+
+function BackArrowIcon() {
+  return (
+    <svg
+      width="22"
+      height="22"
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+      className="shrink-0"
+    >
+      <path
+        d="M15 18l-6-6 6-6"
+        stroke="currentColor"
+        strokeWidth="2.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function ForwardArrowIcon() {
+  return (
+    <svg
+      width="22"
+      height="22"
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+      className="shrink-0"
+    >
+      <path
+        d="M9 6l6 6-6 6"
+        stroke="currentColor"
+        strokeWidth="2.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }
 

@@ -1,4 +1,5 @@
 import { Logo } from "@/components/brand/logo";
+import { EmergencyBanner } from "@/components/patient/emergency-banner";
 import { PatientNav } from "@/components/patient/patient-nav";
 
 import "./patient.css";
@@ -31,6 +32,7 @@ export default function PatientLayout({
         className="mx-auto w-full max-w-lg flex-1 px-4 py-6"
         tabIndex={-1}
       >
+        <EmergencyBanner />
         {children}
       </main>
 

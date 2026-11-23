@@ -41,7 +41,13 @@ export const createPatientMissionSchema = z
     booking_mode: z.enum(["once", "iterative", "recurring"]).default("once"),
     firstname: z.string().min(1, "Prénom requis"),
     lastname: z.string().min(1, "Nom requis"),
-    phone: z.string().min(6).optional(),
+    phone: z
+      .string()
+      .min(1, "Téléphone requis")
+      .refine(
+        (v) => v.replace(/\D/g, "").length >= 6,
+        "Numéro de téléphone invalide (6 chiffres minimum)",
+      ),
     depart_address: z.string().min(3, "Adresse de départ requise"),
     arrival_address: z.string().min(3, "Adresse d’arrivée requise"),
     date: z
@@ -66,9 +72,12 @@ export const createPatientMissionSchema = z
     patient_social_security: z
       .string()
       .optional()
-      .transform((v) => (v ? v.replace(/\D/g, "") : v))
+      .transform((v) => {
+        if (v == null || !String(v).trim()) return undefined;
+        return String(v).replace(/\D/g, "");
+      })
       .refine(
-        (v) => !v || /^\d{15}$/.test(v),
+        (v) => v === undefined || /^\d{15}$/.test(v),
         "Le numéro de sécurité sociale doit contenir exactement 15 chiffres",
       ),
     ordered_for_someone: z.boolean().default(false),

@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
+import { safeNextPath } from "@/lib/auth/safe-next";
 import { sendWelcomeEmailForUser } from "@/lib/email/send-welcome";
 import { createClient } from "@/lib/supabase/server";
 
@@ -47,7 +48,7 @@ export async function signInWithPassword(
   }
 
   const next = formString(formData, "next") || "/";
-  redirect(next.startsWith("/") ? next : "/");
+  redirect(safeNextPath(next));
 }
 
 export async function signUp(

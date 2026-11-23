@@ -11,6 +11,11 @@ export function encryptCredentials(payload: Record<string, unknown>): string {
   const json = JSON.stringify(payload);
 
   if (!secret) {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error(
+        "CONNECTOR_ENCRYPTION_KEY required in production to store connector credentials",
+      );
+    }
     // Local/dev fallback — never use in production without a key
     return `plain:${Buffer.from(json, "utf8").toString("base64")}`;
   }

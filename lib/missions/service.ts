@@ -13,6 +13,11 @@ import {
   type UpdatePecInput,
 } from "@/lib/missions/schema";
 import { parisDayBoundsUtc } from "@/lib/missions/timezone";
+import {
+  assertMissionTransition,
+  canPatientCancel,
+} from "@/lib/missions/transitions";
+import { sealNir } from "@/lib/privacy/nir";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Database, Json, Mission, MissionStatus } from "@/types/database";
 
@@ -147,7 +152,7 @@ export async function createPatientMission(
         external_payload: {
           phone: input.phone ?? null,
           patient_birthdate: input.patient_birthdate || null,
-          patient_social_security: input.patient_social_security?.trim() || null,
+          patient_social_security: sealNir(input.patient_social_security),
           ordered_for_someone: input.ordered_for_someone === true,
           relative_firstname: input.relative_firstname?.trim() || null,
           relative_lastname: input.relative_lastname?.trim() || null,
@@ -366,6 +371,20 @@ export async function updateMission(
   }
 
   if (input.assigned_vehicle_id) {
+    const { data: vehicle, error: vehicleError } = await client
+      .from("vehicles")
+      .select("id, company_id, is_active")
+      .eq("id", input.assigned_vehicle_id)
+      .maybeSingle();
+    if (vehicleError) throw new ApiError(500, vehicleError.message);
+    if (
+      !vehicle ||
+      vehicle.company_id !== session.activeCompanyId ||
+      vehicle.is_active === false
+    ) {
+      throw new ApiError(400, "Véhicule invalide pour cette société");
+    }
+
     patch.assigned_at = now;
     patch.is_locked = true;
     // Assigning a vehicle implies the company takes the mission.
@@ -409,14 +428,37 @@ export async function updateMission(
     }
   }
 
-  const { data, error } = await client
-    .from("missions")
-    .update(patch)
-    .eq("id", missionId)
-    .select("*")
-    .single();
+  const nextStatus = (patch.status ?? current.status) as MissionStatus;
+  try {
+    assertMissionTransition(current.status, nextStatus);
+  } catch {
+    throw new ApiError(
+      400,
+      `Transition de statut interdite : ${current.status} → ${nextStatus}`,
+    );
+  }
+
+  const claimingAccept =
+    input.accepted_bibulance === true && !current.accepted_bibulance;
+
+  // Optimistic claim: only one concurrent accept wins (broadcast race).
+  let builder = client.from("missions").update(patch).eq("id", missionId);
+  if (claimingAccept) {
+    builder = builder.eq("accepted_bibulance", false);
+  }
+
+  const { data, error } = await builder.select("*").maybeSingle();
 
   if (error) throw new ApiError(400, error.message);
+  if (!data) {
+    if (claimingAccept) {
+      throw new ApiError(
+        409,
+        "Cette mission vient d’être prise en charge par une autre action concurrente",
+      );
+    }
+    throw new ApiError(404, "Mission introuvable");
+  }
 
   if (data.accepted_bibulance && !current.accepted_bibulance) {
     await cancelBroadcastSiblings(data);
@@ -489,4 +531,62 @@ export async function listCompanyVehicles(client: Client, companyId: string) {
 
   if (error) throw new ApiError(500, error.message);
   return data ?? [];
+}
+
+/** Patient-initiated cancel (non-accepted, early statuses only). */
+export async function cancelOwnMission(
+  client: Client,
+  session: SessionContext,
+  missionId: string,
+): Promise<Mission> {
+  const current = await getMission(client, missionId);
+  if (current.created_by !== session.userId) {
+    throw new ApiError(403, "Vous ne pouvez annuler que vos propres demandes");
+  }
+  if (!canPatientCancel(current.status, current.accepted_bibulance)) {
+    throw new ApiError(
+      400,
+      "Cette demande ne peut plus être annulée depuis l’espace patient",
+    );
+  }
+
+  // Prefer RPC (security definer) when available after migration.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: rpcData, error: rpcError } = await (client as any).rpc(
+    "cancel_own_mission",
+    { p_mission_id: missionId },
+  );
+
+  if (!rpcError && rpcData) {
+    const row = Array.isArray(rpcData) ? rpcData[0] : rpcData;
+    if (row) return row as Mission;
+  }
+
+  // Fallback when migration not yet applied: staff-style update blocked by RLS
+  // for patients — use admin only after authz checks above.
+  const admin = createAdminClient();
+  const { data, error } = await admin
+    .from("missions")
+    .update({
+      status: "cancelled",
+      is_locked: false,
+      assigned_vehicle_id: null,
+      assigned_driver_id: null,
+    })
+    .eq("id", missionId)
+    .eq("created_by", session.userId)
+    .select("*")
+    .single();
+
+  if (error) throw new ApiError(400, error.message);
+
+  await appendEvent(admin as unknown as Client, {
+    missionId,
+    companyId: data.company_id,
+    actorId: session.userId,
+    eventType: "mission_cancelled_by_patient",
+    payload: { fallback: true, rpc_error: rpcError?.message ?? null },
+  });
+
+  return data;
 }

@@ -408,7 +408,10 @@ export function verifyWebhookSignature(
   signatureHeader: string | null,
   secret: string | null | undefined,
 ): boolean {
-  if (!secret) return true; // allow if not configured (dev)
+  // Never accept unsigned production traffic. Dev-only opt-in.
+  if (!secret) {
+    return process.env.ALLOW_INSECURE_WEBHOOKS === "1";
+  }
   if (!signatureHeader) return false;
 
   const expected = createHash("sha256")

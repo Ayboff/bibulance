@@ -18,8 +18,11 @@ import type { SourcePlatform } from "@/types/database";
 export async function POST(request: Request) {
   try {
     const session = await requireStaffSession();
-    if (!canAdminCompany(session.activeRole) && session.activeRole !== "regulator") {
-      // regulators can import too
+    if (
+      !canAdminCompany(session.activeRole) &&
+      session.activeRole !== "regulator"
+    ) {
+      throw new ApiError(403, "Import CSV réservé aux régulateurs / admins");
     }
 
     const form = await request.formData();

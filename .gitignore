@@ -12,6 +12,8 @@
 
 # testing
 /coverage
+# Generated audit matrix (regenerate via npm run audit:scenarios)
+/docs/audit/scenarios.json
 
 # next.js
 /.next/
