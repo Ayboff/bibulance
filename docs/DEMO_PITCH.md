@@ -20,7 +20,7 @@ Objectif : faire **voir** la valeur en 15–20 min, sans surpromettre.
 |-----|---------|--------|
 | 0–2 | Accueil + landing `#societes` | « Vous régulez aujourd’hui avec téléphone + plateformes. Bibulance = **une file** pour décider. » |
 | 2–7 | Motion dashboard + `/pro/missions` | « Voici ce que voit le régulateur : nouvelles, accepter, véhicule, confirmer. » |
-| 7–12 | `/commander` patient (parcours court) | « Le patient remplit une fois. Adresse assistée. Téléphone obligatoire. Vous recevez ça structuré. » |
+| 7–12 | `/commander` patient (5 écrans) | « Départ + arrivée sur un écran. Hôpital : tapez juste le nom. Téléphone obligatoire. » |
 | 12–15 | Accepte la mission côté pro | « En un clic : acceptée → véhicule → le patient voit le statut. » |
 | 15–18 | Connecteurs (écran) | « Ambléa/PTAH : architecture prête. On branche **vos** flux avec un pilote, sans remplacer votre logiciel métier. » |
 | 18–20 | Closing | « Pilote 2 semaines : 1 société, 1 régulateur, 10 courses. Critère de succès = minutes gagnées + 0 double saisie. » |

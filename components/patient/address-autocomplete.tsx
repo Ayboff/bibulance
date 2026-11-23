@@ -18,7 +18,16 @@ type AddressAutocompleteProps = {
   placeholder?: string;
   hint?: string;
   required?: boolean;
+  /** destination = hôpitaux / cliniques par nom + adresses */
+  mode?: "address" | "destination";
 };
+
+function kindBadge(kind: AddressSuggestion["kind"]): string | null {
+  if (kind === "hospital") return "Hôpital";
+  if (kind === "clinic") return "Clinique";
+  if (kind === "poi") return "Établissement";
+  return null;
+}
 
 export function AddressAutocomplete({
   id,
@@ -28,6 +37,7 @@ export function AddressAutocomplete({
   placeholder,
   hint,
   required,
+  mode = "address",
 }: AddressAutocompleteProps) {
   const listboxId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
@@ -52,7 +62,7 @@ export function AddressAutocomplete({
       setError(null);
       try {
         const res = await fetch(
-          `/api/geo/address-suggest?q=${encodeURIComponent(q)}&limit=6`,
+          `/api/geo/address-suggest?q=${encodeURIComponent(q)}&limit=8&mode=${mode}`,
           { signal: controller.signal },
         );
         if (!res.ok) {
@@ -77,7 +87,7 @@ export function AddressAutocomplete({
       controller.abort();
       window.clearTimeout(timer);
     };
-  }, [value]);
+  }, [value, mode]);
 
   useEffect(() => {
     function onPointerDown(event: MouseEvent) {
@@ -133,6 +143,14 @@ export function AddressAutocomplete({
   const showList = open && (suggestions.length > 0 || loading || (queried && !loading));
   const hintId = `${id}-hint`;
   const errorId = `${id}-error`;
+  const searchingLabel =
+    mode === "destination"
+      ? "Recherche d’hôpitaux, cliniques et adresses…"
+      : "Recherche d’adresses…";
+  const emptyLabel =
+    mode === "destination"
+      ? "Aucun établissement trouvé — essayez le nom (ex. Pitié) ou l’adresse complète."
+      : "Aucune adresse trouvée — vous pouvez saisir l’adresse complète à la main.";
 
   return (
     <div ref={rootRef} className="relative">
@@ -172,7 +190,7 @@ export function AddressAutocomplete({
         </p>
       ) : null}
       {loading ? (
-        <p className="mt-2 text-sm text-[var(--muted)]">Recherche d’adresses…</p>
+        <p className="mt-2 text-sm text-[var(--muted)]">{searchingLabel}</p>
       ) : null}
       {error ? (
         <p id={errorId} className="mt-2 text-sm text-[var(--danger)]">
@@ -182,8 +200,7 @@ export function AddressAutocomplete({
 
       {showList && !loading && suggestions.length === 0 && queried ? (
         <p className="mt-2 text-sm text-[var(--muted)]" role="status">
-          Aucune adresse trouvée — vous pouvez saisir l’adresse complète à la
-          main.
+          {emptyLabel}
         </p>
       ) : null}
 
@@ -195,9 +212,10 @@ export function AddressAutocomplete({
         >
           {suggestions.map((s, index) => {
             const active = index === highlight;
+            const badge = kindBadge(s.kind);
             const secondary = [s.postcode, s.city].filter(Boolean).join(" ");
             return (
-              <li key={`${s.label}-${index}`} role="presentation">
+              <li key={`${s.kind ?? "a"}-${s.label}-${index}`} role="presentation">
                 <button
                   type="button"
                   id={`${listboxId}-option-${index}`}
@@ -211,11 +229,16 @@ export function AddressAutocomplete({
                   onMouseEnter={() => setHighlight(index)}
                   onClick={() => pick(s)}
                 >
-                  <span className="text-base font-medium leading-snug">
+                  <span className="flex flex-wrap items-center gap-2 text-base font-medium leading-snug">
                     {s.name || s.label}
+                    {badge ? (
+                      <span className="rounded-md bg-[var(--accent-soft)] px-1.5 py-0.5 text-xs font-semibold text-[var(--accent)]">
+                        {badge}
+                      </span>
+                    ) : null}
                   </span>
                   <span className="text-sm text-[var(--muted)]">
-                    {secondary || s.context}
+                    {secondary || s.context || s.label}
                   </span>
                 </button>
               </li>
