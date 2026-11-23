@@ -1052,9 +1052,6 @@ export function BookingWizard({
                       onChange={(e) =>
                         update("relative_phone", e.target.value)
                       }
-                      autoComplete="tel"
-                      inputMode="tel"
-                      required
                     />
                   </div>
                 </div>
@@ -1130,7 +1127,6 @@ export function BookingWizard({
                       placeholder="06 12 34 56 78"
                       value={draft.phone}
                       onChange={(e) => update("phone", e.target.value)}
-                      inputMode="tel"
                     />
                   </div>
                 </div>
@@ -1177,8 +1173,6 @@ export function BookingWizard({
                     placeholder="06 12 34 56 78"
                     value={draft.phone}
                     onChange={(e) => update("phone", e.target.value)}
-                    autoComplete="tel"
-                    inputMode="tel"
                   />
                 </div>
                 <div>
