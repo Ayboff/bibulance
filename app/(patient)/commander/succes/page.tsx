@@ -79,14 +79,16 @@ export default async function CommanderSuccessPage({
 
       <Link
         href="/mes-transports"
-        className="patient-btn patient-btn-primary flex w-full items-center justify-center"
+        className="patient-btn patient-btn-primary flex w-full items-center justify-center gap-2"
       >
         Voir mes trajets
+        <span aria-hidden="true">→</span>
       </Link>
       <Link
         href="/commander"
-        className="patient-btn patient-btn-secondary flex w-full items-center justify-center"
+        className="patient-btn patient-btn-secondary flex w-full items-center justify-center gap-2"
       >
+        <span aria-hidden="true">←</span>
         Nouvelle demande
       </Link>
     </div>

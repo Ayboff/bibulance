@@ -378,13 +378,35 @@ export function BookingWizard({
       return;
     }
     setError(null);
+    setDraftRestoredNotice(false);
     setStepIndex((i) => Math.min(i + 1, total - 1));
   }
 
   function goBack() {
     setError(null);
+    setDraftRestoredNotice(false);
     setStepIndex((i) => Math.max(i - 1, 0));
   }
+
+  function goToStep(index: number) {
+    if (index < 0 || index >= total || index === stepIndex || busy) return;
+    // Only allow jumping backward, or forward one step after validation.
+    if (index < stepIndex) {
+      setError(null);
+      setDraftRestoredNotice(false);
+      setStepIndex(index);
+      return;
+    }
+    if (index === stepIndex + 1) {
+      goNext();
+    }
+  }
+
+  useEffect(() => {
+    const el = document.getElementById("contenu-principal");
+    el?.scrollTo?.({ top: 0, behavior: "smooth" });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [stepIndex]);
 
   async function submit() {
     if (busyRef.current) return;
@@ -480,13 +502,62 @@ export function BookingWizard({
       ? "Partenaires Bibulance (sans préférence)"
       : companyName;
 
+  const prevStepTitle =
+    stepIndex > 0 ? STEP_TITLES[steps[stepIndex - 1]!] : null;
+
   return (
-    <div className="space-y-6 animate-brand-fade-up">
+    <div className="patient-wizard space-y-5 animate-brand-fade-up">
+      {/* Top chrome: back arrow + step context */}
+      <div className="patient-wizard-top">
+        {stepIndex > 0 ? (
+          <button
+            type="button"
+            className="patient-back-btn"
+            onClick={goBack}
+            disabled={busy}
+            aria-label={
+              prevStepTitle
+                ? `Retour à l’étape précédente : ${prevStepTitle}`
+                : "Retour à l’étape précédente"
+            }
+          >
+            <BackArrowIcon />
+            <span className="patient-back-btn-text">
+              {prevStepTitle ? (
+                <>
+                  <span className="block text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">
+                    Retour
+                  </span>
+                  <span className="block truncate font-bold leading-tight">
+                    {prevStepTitle}
+                  </span>
+                </>
+              ) : (
+                "Retour"
+              )}
+            </span>
+          </button>
+        ) : (
+          <a href="/mes-transports" className="patient-back-btn">
+            <BackArrowIcon />
+            <span className="patient-back-btn-text">
+              <span className="block text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">
+                Quitter
+              </span>
+              <span className="block font-bold leading-tight">Mes trajets</span>
+            </span>
+          </a>
+        )}
+
+        <div className="min-w-0 flex-1 text-right">
+          <p className="patient-step" aria-live="polite">
+            Étape {currentNumber}&nbsp;/&nbsp;{total}
+          </p>
+        </div>
+      </div>
+
       <div>
-        <p className="patient-step" aria-live="polite">
-          Étape {currentNumber} sur {total}
-        </p>
-        <h1 className="patient-title mt-1">{STEP_TITLES[step]}</h1>
+        <h1 className="patient-title">{STEP_TITLES[step]}</h1>
         <p className="patient-lead mt-2">
           {step === "when" && draft.booking_mode === "iterative"
             ? "Choisissez les jours et l’heure de chaque trajet itératif."
@@ -509,6 +580,30 @@ export function BookingWizard({
           style={{ width: `${(currentNumber / total) * 100}%` }}
         />
       </div>
+
+      {/* Clickable step dots — back only / next via Continuer */}
+      <nav aria-label="Étapes de la commande" className="patient-step-rail">
+        {steps.map((s, i) => {
+          const done = i < stepIndex;
+          const current = i === stepIndex;
+          return (
+            <button
+              key={s}
+              type="button"
+              className="patient-step-dot"
+              data-done={done || undefined}
+              data-current={current || undefined}
+              disabled={busy || i > stepIndex}
+              aria-current={current ? "step" : undefined}
+              aria-label={`${STEP_TITLES[s]}${done ? " (terminée)" : current ? " (en cours)" : ""}`}
+              onClick={() => goToStep(i)}
+              title={STEP_TITLES[s]}
+            >
+              {done ? "✓" : i + 1}
+            </button>
+          );
+        })}
+      </nav>
 
       {draftRestoredNotice ? (
         <div
@@ -533,7 +628,7 @@ export function BookingWizard({
         </div>
       ) : null}
 
-      <div className="space-y-4">
+      <div className="space-y-4 pb-28">
         {step === "mode" ? (
           <fieldset className="space-y-3">
             <legend className="patient-label">Votre besoin</legend>
@@ -1242,6 +1337,27 @@ export function BookingWizard({
                     : "Voiture sanitaire (VSL)"
                 }
               />
+              <ReviewRow
+                label="Besoins"
+                value={
+                  Object.entries(draft.specialties)
+                    .filter(([, v]) => v)
+                    .map(([k]) =>
+                      k === "accompagnant"
+                        ? "Accompagnant"
+                        : k === "deambulateur"
+                          ? "Déambulateur"
+                          : k === "fauteuil"
+                            ? "Fauteuil"
+                            : k === "bmr"
+                              ? "BMR"
+                              : k === "oxygene"
+                                ? "Oxygène"
+                                : k,
+                    )
+                    .join(" · ") || "Aucun"
+                }
+              />
             </div>
 
             {draft.booking_mode === "iterative" ? (
@@ -1255,42 +1371,98 @@ export function BookingWizard({
         ) : null}
       </div>
 
-      <div className="flex flex-col gap-3 pt-2">
+      {/* Sticky bottom: ← Retour | Continuer → */}
+      <div className="patient-wizard-footer" role="navigation" aria-label="Navigation du formulaire">
+        {stepIndex > 0 ? (
+          <button
+            type="button"
+            className="patient-btn patient-btn-secondary patient-footer-back"
+            onClick={goBack}
+            disabled={busy}
+          >
+            <BackArrowIcon />
+            <span>Retour</span>
+          </button>
+        ) : (
+          <a
+            href="/mes-transports"
+            className="patient-btn patient-btn-secondary patient-footer-back"
+          >
+            <BackArrowIcon />
+            <span>Quitter</span>
+          </a>
+        )}
+
         {step === "confirm" ? (
           <button
             type="button"
-            className="patient-btn patient-btn-primary w-full"
+            className="patient-btn patient-btn-primary patient-footer-next"
             disabled={busy}
             onClick={() => void submit()}
           >
-            {busy
-              ? "Envoi en cours…"
-              : draft.booking_mode === "iterative"
-                ? `Envoyer ${previewOccurrences.length} trajets itératifs`
-                : "Envoyer ma demande"}
+            <span>
+              {busy
+                ? "Envoi…"
+                : draft.booking_mode === "iterative"
+                  ? `Envoyer (${previewOccurrences.length})`
+                  : "Envoyer"}
+            </span>
           </button>
         ) : (
           <button
             type="button"
-            className="patient-btn patient-btn-primary w-full"
+            className="patient-btn patient-btn-primary patient-footer-next"
             onClick={goNext}
-          >
-            Continuer
-          </button>
-        )}
-
-        {stepIndex > 0 ? (
-          <button
-            type="button"
-            className="patient-btn patient-btn-secondary w-full"
-            onClick={goBack}
             disabled={busy}
           >
-            Retour
+            <span>Continuer</span>
+            <ForwardArrowIcon />
           </button>
-        ) : null}
+        )}
       </div>
     </div>
+  );
+}
+
+function BackArrowIcon() {
+  return (
+    <svg
+      width="22"
+      height="22"
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+      className="shrink-0"
+    >
+      <path
+        d="M15 18l-6-6 6-6"
+        stroke="currentColor"
+        strokeWidth="2.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function ForwardArrowIcon() {
+  return (
+    <svg
+      width="22"
+      height="22"
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+      className="shrink-0"
+    >
+      <path
+        d="M9 6l6 6-6 6"
+        stroke="currentColor"
+        strokeWidth="2.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }
 
