@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useId, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 
 import { AddressAutocomplete } from "@/components/patient/address-autocomplete";
 import {
@@ -10,6 +10,8 @@ import {
   parisNowParts,
   suggestDefaultTime,
 } from "@/lib/missions/booking-meta";
+
+const DRAFT_STORAGE_KEY = "bibulance.booking.draft.v1";
 
 type Company = { id: string; name: string; slug: string };
 
@@ -179,6 +181,7 @@ export function BookingWizard({
   const [stepIndex, setStepIndex] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const busyRef = useRef(false);
   const [draft, setDraft] = useState<Draft>({
     booking_mode: "once",
     dispatch_mode: companies.length > 1 ? "partners" : "specific",
@@ -208,6 +211,48 @@ export function BookingWizard({
       oxygene: false,
     },
   });
+  const [draftHydrated, setDraftHydrated] = useState(false);
+
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(DRAFT_STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw) as Partial<Draft> & {
+          stepIndex?: number;
+        };
+        const { patient_social_security: _nir, stepIndex: savedStep, ...rest } =
+          parsed;
+        setDraft((prev) => ({
+          ...prev,
+          ...rest,
+          patient_social_security: "",
+        }));
+        if (
+          typeof savedStep === "number" &&
+          savedStep >= 0 &&
+          savedStep < STEPS.length
+        ) {
+          setStepIndex(savedStep);
+        }
+      }
+    } catch {
+      /* ignore */
+    }
+    setDraftHydrated(true);
+  }, []);
+
+  useEffect(() => {
+    if (!draftHydrated) return;
+    try {
+      const { patient_social_security: _nir, ...safe } = draft;
+      sessionStorage.setItem(
+        DRAFT_STORAGE_KEY,
+        JSON.stringify({ ...safe, stepIndex }),
+      );
+    } catch {
+      // ignore quota / private mode
+    }
+  }, [draft, stepIndex, draftHydrated]);
 
   const selfFirst = defaultName?.first ?? "";
   const selfLast = defaultName?.last ?? "";
@@ -337,6 +382,7 @@ export function BookingWizard({
   }
 
   async function submit() {
+    if (busyRef.current) return;
     const msg = validateCurrent();
     if (msg) {
       setError(msg);
@@ -346,6 +392,7 @@ export function BookingWizard({
       setError("Aucune date de transport à envoyer.");
       return;
     }
+    busyRef.current = true;
     setBusy(true);
     setError(null);
     try {
@@ -388,6 +435,11 @@ export function BookingWizard({
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "Envoi impossible");
+      try {
+        sessionStorage.removeItem(DRAFT_STORAGE_KEY);
+      } catch {
+        /* ignore */
+      }
       const id = json.mission?.id as string | undefined;
       const count = (json.created_count as number | undefined) ?? 1;
       const qs = new URLSearchParams();
@@ -399,7 +451,7 @@ export function BookingWizard({
       router.refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Une erreur est survenue.");
-    } finally {
+      busyRef.current = false;
       setBusy(false);
     }
   }

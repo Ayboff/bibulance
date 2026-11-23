@@ -539,12 +539,19 @@ export function ProMissionsBoard({
                     <Button
                       variant="danger"
                       disabled={busy}
-                      onClick={() =>
-                        patchMission(selected.id, {
+                      onClick={() => {
+                        if (
+                          !window.confirm(
+                            "Refuser cette demande ? Le patient verra la course comme non prise en charge.",
+                          )
+                        ) {
+                          return;
+                        }
+                        void patchMission(selected.id, {
                           accepted_bibulance: false,
                           status: "refused",
-                        })
-                      }
+                        });
+                      }}
                     >
                       Refuser
                     </Button>

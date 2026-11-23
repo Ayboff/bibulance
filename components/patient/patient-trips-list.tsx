@@ -8,6 +8,7 @@ import {
 } from "@/lib/patient/status";
 import { dedupePatientVisibleMissions } from "@/lib/patient/trips";
 import { formatDateTime, formatTime } from "@/lib/missions/format";
+import { canPatientCancel } from "@/lib/missions/transitions";
 import { useMissionsCreatedByRealtime } from "@/lib/missions/realtime";
 import type { Mission } from "@/types/database";
 
@@ -88,6 +89,9 @@ export function PatientTripsList({
         empty="Vous n’avez aucun transport à venir."
         missions={upcoming}
         companyNames={companyNames}
+        onCancelled={(mission) =>
+          setMissions((prev) => mergeMission(prev, mission, "UPDATE"))
+        }
       />
       <TripSection
         title="Historique"
@@ -104,11 +108,13 @@ function TripSection({
   empty,
   missions,
   companyNames,
+  onCancelled,
 }: {
   title: string;
   empty: string;
   missions: Mission[];
   companyNames: Record<string, string>;
+  onCancelled?: (mission: Mission) => void;
 }) {
   const headingId = `section-${title.replace(/\s+/g, "-").toLowerCase()}`;
   return (
@@ -125,6 +131,7 @@ function TripSection({
               key={m.id}
               mission={m}
               companyName={companyNames[m.company_id] ?? null}
+              onCancelled={onCancelled}
             />
           ))}
         </ul>
@@ -136,14 +143,44 @@ function TripSection({
 function TripCard({
   mission,
   companyName,
+  onCancelled,
 }: {
   mission: Mission;
   companyName: string | null;
+  onCancelled?: (mission: Mission) => void;
 }) {
   const st = patientStatusDetail(mission);
   const isClosed =
     mission.status === "cancelled" || mission.status === "refused";
   const showCompany = mission.accepted_bibulance && !isClosed;
+  const [cancelling, setCancelling] = useState(false);
+  const [cancelError, setCancelError] = useState<string | null>(null);
+  const cancellable = canPatientCancel(
+    mission.status,
+    mission.accepted_bibulance,
+  );
+
+  async function cancelTrip() {
+    if (!cancellable || cancelling) return;
+    const ok = window.confirm(
+      "Annuler cette demande de transport ? Cette action est définitive.",
+    );
+    if (!ok) return;
+    setCancelling(true);
+    setCancelError(null);
+    try {
+      const res = await fetch(`/api/missions/${mission.id}/cancel`, {
+        method: "POST",
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "Annulation impossible");
+      onCancelled?.(json.mission as Mission);
+    } catch (e) {
+      setCancelError(e instanceof Error ? e.message : "Erreur d’annulation");
+    } finally {
+      setCancelling(false);
+    }
+  }
 
   return (
     <li className="patient-card space-y-3">
@@ -198,6 +235,23 @@ function TripCard({
       >
         {st.hint}
       </p>
+
+      {cancelError ? (
+        <p className="text-sm font-semibold text-[var(--danger)]" role="alert">
+          {cancelError}
+        </p>
+      ) : null}
+
+      {cancellable ? (
+        <button
+          type="button"
+          className="patient-btn patient-btn-secondary inline-flex w-full items-center justify-center disabled:opacity-60"
+          disabled={cancelling}
+          onClick={() => void cancelTrip()}
+        >
+          {cancelling ? "Annulation…" : "Annuler cette demande"}
+        </button>
+      ) : null}
 
       {isClosed ? (
         <a
