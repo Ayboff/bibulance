@@ -47,7 +47,12 @@ export async function signInWithPassword(
   }
 
   const next = formString(formData, "next") || "/";
-  redirect(next.startsWith("/") ? next : "/");
+  // Block open redirects: "//evil.com" starts with "/" but leaves the site.
+  const safeNext =
+    next.startsWith("/") && !next.startsWith("//") && !next.includes("\\")
+      ? next
+      : "/";
+  redirect(safeNext);
 }
 
 export async function signUp(

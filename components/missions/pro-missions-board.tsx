@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { MissionSourceChips } from "@/components/missions/mission-source-chips";
 import { StatusBadge } from "@/components/missions/status-badge";
@@ -40,8 +40,19 @@ const STATUS_OPTIONS: Array<MissionStatus | "all"> = [
   "pending_platform",
   "confirmed",
   "assigned",
+  "in_progress",
+  "done",
+  "cancelled",
   "refused",
 ];
+
+const SPECIALTY_LABELS: Record<string, string> = {
+  accompagnant: "Accompagnant",
+  deambulateur: "Déambulateur",
+  fauteuil: "Fauteuil",
+  bmr: "BMR",
+  oxygene: "Oxygène",
+};
 
 const PLATFORM_OPTIONS: Array<SourcePlatform | "all"> = [
   "all",
@@ -87,6 +98,7 @@ export function ProMissionsBoard({
   const [hideConfirmed, setHideConfirmed] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const busyRef = useRef(false);
   const [pecLocal, setPecLocal] = useState("");
 
   const onRealtime = useCallback(
@@ -155,6 +167,8 @@ export function ProMissionsBoard({
   }, [selected?.id, selected?.pec_estimated_time]);
 
   async function patchMission(id: string, body: Record<string, unknown>) {
+    if (busyRef.current) return;
+    busyRef.current = true;
     setBusy(true);
     setError(null);
     try {
@@ -169,12 +183,14 @@ export function ProMissionsBoard({
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erreur");
     } finally {
+      busyRef.current = false;
       setBusy(false);
     }
   }
 
   async function savePec() {
-    if (!selected || !pecLocal) return;
+    if (!selected || !pecLocal || busyRef.current) return;
+    busyRef.current = true;
     setBusy(true);
     setError(null);
     try {
@@ -191,6 +207,7 @@ export function ProMissionsBoard({
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erreur");
     } finally {
+      busyRef.current = false;
       setBusy(false);
     }
   }
@@ -530,9 +547,22 @@ export function ProMissionsBoard({
                   <>
                     <Button
                       disabled={busy}
-                      onClick={() =>
-                        patchMission(selected.id, { accepted_bibulance: true })
-                      }
+                      onClick={() => {
+                        const partners =
+                          getMissionBookingMeta(selected).dispatch_mode ===
+                          "partners";
+                        if (
+                          partners &&
+                          !window.confirm(
+                            "Accepter cette mission partenaires ? Les autres sociétés verront la demande se fermer.",
+                          )
+                        ) {
+                          return;
+                        }
+                        void patchMission(selected.id, {
+                          accepted_bibulance: true,
+                        });
+                      }}
                     >
                       Accepter
                     </Button>
@@ -573,11 +603,26 @@ export function ProMissionsBoard({
                       disabled={busy}
                       onChange={(e) => {
                         const value = e.target.value;
+                        if (!value) {
+                          void patchMission(selected.id, {
+                            assigned_vehicle_id: null,
+                          });
+                          return;
+                        }
+                        if (
+                          !selected.accepted_bibulance &&
+                          !window.confirm(
+                            "Affecter un véhicule accepte aussi la mission. Continuer ?",
+                          )
+                        ) {
+                          e.target.value = selected.assigned_vehicle_id ?? "";
+                          return;
+                        }
                         void patchMission(selected.id, {
-                          assigned_vehicle_id: value || null,
-                          ...(value && !selected.accepted_bibulance
-                            ? { accepted_bibulance: true }
-                            : {}),
+                          assigned_vehicle_id: value,
+                          ...(selected.accepted_bibulance
+                            ? {}
+                            : { accepted_bibulance: true }),
                         });
                       }}
                     >
@@ -665,6 +710,9 @@ const STATUS_LABELS_SAFE: Record<string, string> = {
   pending_platform: "Attente plateforme",
   confirmed: "Confirmée",
   assigned: "Affectée",
+  in_progress: "En cours",
+  done: "Terminée",
+  cancelled: "Annulée",
   refused: "Refusée",
 };
 
@@ -701,8 +749,21 @@ function Kpi({
   return content;
 }
 
+function telHref(phone: string) {
+  return `tel:${phone.replace(/\s/g, "")}`;
+}
+
+function specialtyChips(mission: Mission): string[] {
+  const raw = mission.specialties;
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return [];
+  return Object.entries(raw as Record<string, unknown>)
+    .filter(([, v]) => v === true)
+    .map(([k]) => SPECIALTY_LABELS[k] ?? k);
+}
+
 function BookingContactBlock({ mission }: { mission: Mission }) {
   const meta = getMissionBookingMeta(mission);
+  const chips = specialtyChips(mission);
 
   return (
     <div className="mt-3 space-y-1.5 rounded-lg border border-border/80 bg-background/80 px-3 py-2.5 text-sm">
@@ -719,15 +780,32 @@ function BookingContactBlock({ mission }: { mission: Mission }) {
             {meta.relative_relation ? ` (${meta.relative_relation})` : ""}
           </p>
           {meta.relative_phone ? (
-            <p className="font-medium">Tél. demandeur : {meta.relative_phone}</p>
+            <p className="font-medium">
+              Tél. demandeur :{" "}
+              <a className="text-accent underline" href={telHref(meta.relative_phone)}>
+                {meta.relative_phone}
+              </a>
+            </p>
           ) : null}
           {meta.phone ? (
-            <p className="text-muted">Tél. patient : {meta.phone}</p>
+            <p className="text-muted">
+              Tél. patient :{" "}
+              <a className="underline" href={telHref(meta.phone)}>
+                {meta.phone}
+              </a>
+            </p>
           ) : null}
         </>
       ) : meta.phone ? (
-        <p className="font-medium">Tél. {meta.phone}</p>
-      ) : null}
+        <p className="font-medium">
+          Tél.{" "}
+          <a className="text-accent underline" href={telHref(meta.phone)}>
+            {meta.phone}
+          </a>
+        </p>
+      ) : (
+        <p className="text-xs font-semibold text-danger">Téléphone non renseigné</p>
+      )}
       {meta.patient_birthdate ? (
         <p className="text-muted">
           Né(e) le{" "}
@@ -749,6 +827,11 @@ function BookingContactBlock({ mission }: { mission: Mission }) {
       ) : (
         <p className="text-xs text-muted">N° sécu. non renseigné</p>
       )}
+      {chips.length > 0 ? (
+        <p className="text-xs font-medium text-ink">
+          Besoins : {chips.join(" · ")}
+        </p>
+      ) : null}
     </div>
   );
 }

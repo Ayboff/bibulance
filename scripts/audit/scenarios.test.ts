@@ -170,6 +170,7 @@ describe("audit scenario matrix", () => {
           dateReject ||
           phone === "short" ||
           phone === "letters" ||
+          phone === "missing" ||
           nir === "short" ||
           nir === "letters" ||
           (relative && phone === "missing");

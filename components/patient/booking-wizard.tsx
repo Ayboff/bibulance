@@ -212,6 +212,7 @@ export function BookingWizard({
     },
   });
   const [draftHydrated, setDraftHydrated] = useState(false);
+  const [draftRestoredNotice, setDraftRestoredNotice] = useState(false);
 
   useEffect(() => {
     try {
@@ -234,6 +235,7 @@ export function BookingWizard({
         ) {
           setStepIndex(savedStep);
         }
+        setDraftRestoredNotice(true);
       }
     } catch {
       /* ignore */
@@ -354,6 +356,9 @@ export function BookingWizard({
         } else {
           if (draft.firstname.trim().length < 1) return "Indiquez le prénom.";
           if (draft.lastname.trim().length < 1) return "Indiquez le nom.";
+          if (draft.phone.replace(/\D/g, "").length < 6) {
+            return "Indiquez un numéro de téléphone joignable (6 chiffres min.).";
+          }
         }
         const nirError = nirValidationMessage(draft.patient_social_security);
         if (nirError) return nirError;
@@ -406,7 +411,7 @@ export function BookingWizard({
           booking_mode: draft.booking_mode,
           firstname: draft.firstname.trim(),
           lastname: draft.lastname.trim(),
-          phone: draft.phone.trim() || undefined,
+          phone: draft.phone.trim(),
           patient_birthdate: draft.patient_birthdate || undefined,
           patient_social_security:
             normalizeNirInput(draft.patient_social_security) || undefined,
@@ -504,6 +509,19 @@ export function BookingWizard({
           style={{ width: `${(currentNumber / total) * 100}%` }}
         />
       </div>
+
+      {draftRestoredNotice ? (
+        <div
+          className="patient-card border-[var(--accent)] text-[var(--ink)]"
+          role="status"
+        >
+          <p className="font-bold">Brouillon restauré</p>
+          <p className="text-sm text-[var(--muted)]">
+            Vos saisies ont été reprises. Le numéro de sécurité sociale n’est
+            jamais mémorisé — ressaisissez-le si besoin.
+          </p>
+        </div>
+      ) : null}
 
       {error ? (
         <div

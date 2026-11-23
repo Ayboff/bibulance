@@ -8,14 +8,22 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const wantDb = url.searchParams.get("db") === "1";
 
-  const checks: Record<string, "ok" | "missing" | "error"> = {
+  // Public probe: no secret-presence recon. Detailed flags only when ?db=1
+  // (ops cutover) — still no secret values.
+  const publicChecks: Record<string, "ok" | "missing" | "error"> = {
     app_url: process.env.NEXT_PUBLIC_APP_URL ? "ok" : "missing",
     supabase_url: process.env.NEXT_PUBLIC_SUPABASE_URL ? "ok" : "missing",
     supabase_anon: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? "ok" : "missing",
-    service_role: process.env.SUPABASE_SERVICE_ROLE_KEY ? "ok" : "missing",
-    cron_secret: process.env.CRON_SECRET ? "ok" : "missing",
-    connector_key: process.env.CONNECTOR_ENCRYPTION_KEY ? "ok" : "missing",
   };
+
+  const checks: Record<string, "ok" | "missing" | "error"> = wantDb
+    ? {
+        ...publicChecks,
+        service_role: process.env.SUPABASE_SERVICE_ROLE_KEY ? "ok" : "missing",
+        cron_secret: process.env.CRON_SECRET ? "ok" : "missing",
+        connector_key: process.env.CONNECTOR_ENCRYPTION_KEY ? "ok" : "missing",
+      }
+    : publicChecks;
 
   let databaseHint: string | undefined;
 
@@ -42,11 +50,12 @@ export async function GET(request: Request) {
     }
   }
 
-  const ready =
-    checks.supabase_url === "ok" &&
-    checks.supabase_anon === "ok" &&
-    checks.service_role === "ok" &&
-    (!wantDb || checks.database === "ok");
+  const ready = wantDb
+    ? checks.supabase_url === "ok" &&
+      checks.supabase_anon === "ok" &&
+      checks.service_role === "ok" &&
+      checks.database === "ok"
+    : checks.supabase_url === "ok" && checks.supabase_anon === "ok";
 
   return NextResponse.json(
     {

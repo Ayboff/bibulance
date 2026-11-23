@@ -49,6 +49,13 @@ export async function POST(request: Request, { params }: Params) {
       throw new ApiError(404, "Connecteur non configuré pour cette société");
     }
 
+    if (connector.sync_mode !== "webhook") {
+      throw new ApiError(
+        400,
+        "Ce connecteur n’accepte pas les webhooks (sync_mode ≠ webhook)",
+      );
+    }
+
     const signature =
       request.headers.get("x-bibulance-signature") ??
       request.headers.get("x-signature");

@@ -43,9 +43,9 @@ export const createPatientMissionSchema = z
     lastname: z.string().min(1, "Nom requis"),
     phone: z
       .string()
-      .optional()
+      .min(1, "Téléphone requis")
       .refine(
-        (v) => !v || v.replace(/\D/g, "").length >= 6,
+        (v) => v.replace(/\D/g, "").length >= 6,
         "Numéro de téléphone invalide (6 chiffres minimum)",
       ),
     depart_address: z.string().min(3, "Adresse de départ requise"),
