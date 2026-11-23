@@ -45,8 +45,8 @@ export const createPatientMissionSchema = z
       .string()
       .min(1, "Téléphone requis")
       .refine(
-        (v) => v.replace(/\D/g, "").length >= 6,
-        "Numéro de téléphone invalide (6 chiffres minimum)",
+        (v) => v.replace(/\D/g, "").length >= 10,
+        "Le numéro de téléphone doit contenir au moins 10 chiffres",
       ),
     depart_address: z.string().min(3, "Adresse de départ requise"),
     arrival_address: z.string().min(3, "Adresse d’arrivée requise"),
@@ -120,10 +120,14 @@ export const createPatientMissionSchema = z
           path: ["relative_lastname"],
         });
       }
-      if (!data.relative_phone?.trim() || data.relative_phone.trim().length < 6) {
+      if (
+        !data.relative_phone?.trim() ||
+        data.relative_phone.replace(/\D/g, "").length < 10
+      ) {
         ctx.addIssue({
           code: "custom",
-          message: "Téléphone du demandeur requis",
+          message:
+            "Téléphone du demandeur requis (10 chiffres minimum)",
           path: ["relative_phone"],
         });
       }

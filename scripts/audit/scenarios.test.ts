@@ -172,8 +172,7 @@ describe("audit scenario matrix", () => {
           phone === "letters" ||
           phone === "missing" ||
           nir === "short" ||
-          nir === "letters" ||
-          (relative && phone === "missing");
+          nir === "letters";
 
         if (hardReject && parsed.success) {
           failed++;
