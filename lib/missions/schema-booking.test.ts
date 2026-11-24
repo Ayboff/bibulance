@@ -53,17 +53,29 @@ describe("createPatientMissionSchema regression", () => {
 });
 
 describe("isActiveUpcomingMission regression", () => {
-  it("keeps non-terminal overdue missions in upcoming", () => {
+  it("keeps accepted overdue missions in upcoming; drops cancelled", () => {
     expect(
       isActiveUpcomingMission({
         status: "assigned",
         rdv_time: "2020-01-01T10:00:00.000Z",
+        accepted_bibulance: true,
+        external_payload: {},
       }),
     ).toBe(true);
     expect(
       isActiveUpcomingMission({
         status: "cancelled",
         rdv_time: "2099-01-01T10:00:00.000Z",
+        accepted_bibulance: false,
+        external_payload: {},
+      }),
+    ).toBe(false);
+    expect(
+      isActiveUpcomingMission({
+        status: "incoming",
+        rdv_time: "2020-01-01T10:00:00.000Z",
+        accepted_bibulance: false,
+        external_payload: { dispatch_mode: "partners" },
       }),
     ).toBe(false);
   });

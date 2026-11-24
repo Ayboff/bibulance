@@ -17,6 +17,8 @@ export type MissionBookingMeta = {
   relative_phone: string | null;
   patient_birthdate: string | null;
   patient_social_security: string | null;
+  expired_unaccepted: boolean;
+  cancel_reason: string | null;
 };
 
 function asRecord(value: Json | null | undefined): Record<string, unknown> {
@@ -59,6 +61,8 @@ export function getMissionBookingMeta(
       const masked = displayNirSafe(raw);
       return masked || null;
     })(),
+    expired_unaccepted: p.expired_unaccepted === true,
+    cancel_reason: asString(p.cancel_reason),
   };
 }
 

@@ -4,6 +4,7 @@ import { useCallback, useMemo, useState } from "react";
 
 import {
   isActiveUpcomingMission,
+  isUnacceptedPastDeadline,
   patientStatusDetail,
 } from "@/lib/patient/status";
 import { dedupePatientVisibleMissions } from "@/lib/patient/trips";
@@ -150,15 +151,17 @@ function TripCard({
   onCancelled?: (mission: Mission) => void;
 }) {
   const st = patientStatusDetail(mission);
+  const expiredUnaccepted = isUnacceptedPastDeadline(mission);
   const isClosed =
-    mission.status === "cancelled" || mission.status === "refused";
+    mission.status === "cancelled" ||
+    mission.status === "refused" ||
+    expiredUnaccepted;
   const showCompany = mission.accepted_bibulance && !isClosed;
   const [cancelling, setCancelling] = useState(false);
   const [cancelError, setCancelError] = useState<string | null>(null);
-  const cancellable = canPatientCancel(
-    mission.status,
-    mission.accepted_bibulance,
-  );
+  const cancellable =
+    !expiredUnaccepted &&
+    canPatientCancel(mission.status, mission.accepted_bibulance);
 
   async function cancelTrip() {
     if (!cancellable || cancelling) return;

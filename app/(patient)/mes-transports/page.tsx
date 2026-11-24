@@ -4,6 +4,7 @@ import { GuestLookupForm } from "@/components/patient/guest-lookup-form";
 import { PatientTripsList } from "@/components/patient/patient-trips-list";
 import { getSessionContext } from "@/lib/auth/session";
 import { readGuestTokensFromCookies } from "@/lib/guest/tokens";
+import { expireUnacceptedPastMissions } from "@/lib/missions/expire-unaccepted";
 import {
   listBookableCompaniesPublic,
   listMissionsByGuestTokens,
@@ -49,6 +50,9 @@ export default async function MesTransportsPage() {
     missions = guestMissions;
     companyNames = Object.fromEntries(companies.map((c) => [c.id, c.name]));
   }
+
+  // RDV passé + jamais acceptée → annule et retire de « À venir »
+  missions = await expireUnacceptedPastMissions(missions);
 
   const hasTrips = missions.length > 0;
 
