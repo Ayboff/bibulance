@@ -9,6 +9,7 @@ import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { vehicleBusyLabel } from "@/lib/fleet/availability";
 import { getMissionBookingMeta } from "@/lib/missions/booking-meta";
 import {
   computeMissionKpis,
@@ -212,9 +213,22 @@ export function ProMissionsBoard({
     }
   }
 
-  const matchingVehicles = vehicles.filter((v) =>
-    selected?.vehicle_type ? v.vehicle_type === selected.vehicle_type : true,
-  );
+  const vehicleOptions = useMemo(() => {
+    if (!selected) return [];
+    return vehicles
+      .filter((v) =>
+        selected.vehicle_type ? v.vehicle_type === selected.vehicle_type : true,
+      )
+      .map((v) => {
+        const busy =
+          selected.assigned_vehicle_id === v.id
+            ? null
+            : vehicleBusyLabel(v.id, selected, missions);
+        return { ...v, busy };
+      });
+  }, [vehicles, missions, selected]);
+
+  const matchingVehicles = vehicleOptions;
 
   const partnersOfDay = useMemo(
     () =>
@@ -593,8 +607,12 @@ export function ProMissionsBoard({
                   <div className="space-y-2 rounded-xl border border-border/70 bg-background/70 p-3">
                     <Label htmlFor="vehicle">Affecter un véhicule</Label>
                     <p className="text-xs text-muted">
-                      Choisissez un véhicule de votre parc avant ou après la
-                      confirmation.
+                      Les véhicules déjà pris sur ce créneau sont grisés. Voir
+                      aussi le{" "}
+                      <Link href="/pro/fleet" className="text-accent underline">
+                        planning parc
+                      </Link>
+                      .
                     </p>
                     <select
                       id="vehicle"
@@ -607,6 +625,14 @@ export function ProMissionsBoard({
                           void patchMission(selected.id, {
                             assigned_vehicle_id: null,
                           });
+                          return;
+                        }
+                        const option = vehicleOptions.find((v) => v.id === value);
+                        if (option?.busy) {
+                          window.alert(
+                            `${option.code} : ${option.busy}. Choisissez un autre véhicule.`,
+                          );
+                          e.target.value = selected.assigned_vehicle_id ?? "";
                           return;
                         }
                         if (
@@ -627,9 +653,10 @@ export function ProMissionsBoard({
                       }}
                     >
                       <option value="">Choisir un véhicule…</option>
-                      {matchingVehicles.map((v) => (
-                        <option key={v.id} value={v.id}>
+                      {vehicleOptions.map((v) => (
+                        <option key={v.id} value={v.id} disabled={Boolean(v.busy)}>
                           {v.code} ({v.vehicle_type})
+                          {v.busy ? ` — ${v.busy}` : " — libre"}
                         </option>
                       ))}
                     </select>
@@ -642,10 +669,15 @@ export function ProMissionsBoard({
                       </p>
                     ) : (
                       <p className="text-xs text-muted">
-                        {matchingVehicles.length} véhicule
-                        {matchingVehicles.length > 1 ? "s" : ""}{" "}
-                        {selected.vehicle_type} disponible
-                        {matchingVehicles.length > 1 ? "s" : ""}.
+                        {
+                          vehicleOptions.filter((v) => !v.busy).length
+                        }{" "}
+                        libre
+                        {vehicleOptions.filter((v) => !v.busy).length > 1
+                          ? "s"
+                          : ""}{" "}
+                        sur {matchingVehicles.length}{" "}
+                        {selected.vehicle_type}.
                       </p>
                     )}
                     {selected.assigned_vehicle_id ? (
