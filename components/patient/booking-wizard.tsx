@@ -146,9 +146,14 @@ function nirValidationMessage(value: string): string | null {
 export function BookingWizard({
   companies,
   defaultName,
+  presetCompanyId,
+  vehicleCode,
 }: {
   companies: Company[];
   defaultName?: { first?: string; last?: string };
+  /** Société imposée via QR / lien /c/[slug] */
+  presetCompanyId?: string;
+  vehicleCode?: string;
 }) {
   const router = useRouter();
   const formId = useId();
@@ -161,14 +166,23 @@ export function BookingWizard({
     };
   }, []);
 
+  const lockedCompanyId =
+    presetCompanyId && companies.some((c) => c.id === presetCompanyId)
+      ? presetCompanyId
+      : undefined;
+
   const [stepIndex, setStepIndex] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const busyRef = useRef(false);
   const [draft, setDraft] = useState<Draft>({
     booking_mode: "once",
-    dispatch_mode: companies.length > 1 ? "partners" : "specific",
-    company_id: companies[0]?.id ?? "",
+    dispatch_mode: lockedCompanyId
+      ? "specific"
+      : companies.length > 1
+        ? "partners"
+        : "specific",
+    company_id: lockedCompanyId ?? companies[0]?.id ?? "",
     depart_address: "",
     arrival_address: "",
     date: today,
@@ -451,11 +465,14 @@ export function BookingWizard({
       }
       const id = json.mission?.id as string | undefined;
       const count = (json.created_count as number | undefined) ?? 1;
+      const guestToken = json.guest_access_token as string | undefined;
       const qs = new URLSearchParams();
       if (id) qs.set("id", id);
       qs.set("count", String(count));
       if (draft.dispatch_mode === "partners") qs.set("partners", "1");
       if (draft.booking_mode === "iterative") qs.set("iterative", "1");
+      if (guestToken) qs.set("token", guestToken);
+      if (vehicleCode) qs.set("v", vehicleCode);
       router.push(`/commander/succes?${qs.toString()}`);
       router.refresh();
     } catch (e) {
@@ -1186,45 +1203,56 @@ export function BookingWizard({
 
             <fieldset className="space-y-3">
               <legend className="patient-label">Société d’ambulances</legend>
-              {companies.length > 1 ? (
-                <button
-                  type="button"
-                  className="patient-choice"
-                  data-selected={draft.dispatch_mode === "partners"}
-                  aria-pressed={draft.dispatch_mode === "partners"}
-                  onClick={() => update("dispatch_mode", "partners")}
-                >
-                  <span className="block">Pas de préférence</span>
-                  <span className="mt-1 block text-base font-normal text-[var(--muted)]">
-                    La première société partenaire qui accepte prend en charge
-                  </span>
-                </button>
-              ) : null}
-              {companies.map((c) => (
-                <button
-                  key={c.id}
-                  type="button"
-                  className="patient-choice"
-                  data-selected={
-                    draft.dispatch_mode === "specific" &&
-                    draft.company_id === c.id
-                  }
-                  aria-pressed={
-                    draft.dispatch_mode === "specific" &&
-                    draft.company_id === c.id
-                  }
-                  onClick={() => {
-                    setDraft((d) => ({
-                      ...d,
-                      dispatch_mode: "specific",
-                      company_id: c.id,
-                    }));
-                    setError(null);
-                  }}
-                >
-                  {c.name}
-                </button>
-              ))}
+              {lockedCompanyId ? (
+                <p className="patient-choice" data-selected="true">
+                  {(companies.find((c) => c.id === lockedCompanyId)?.name ??
+                    "Société sélectionnée") +
+                    (vehicleCode ? ` · véhicule ${vehicleCode}` : "")}
+                </p>
+              ) : (
+                <>
+                  {companies.length > 1 ? (
+                    <button
+                      type="button"
+                      className="patient-choice"
+                      data-selected={draft.dispatch_mode === "partners"}
+                      aria-pressed={draft.dispatch_mode === "partners"}
+                      onClick={() => update("dispatch_mode", "partners")}
+                    >
+                      <span className="block">Pas de préférence</span>
+                      <span className="mt-1 block text-base font-normal text-[var(--muted)]">
+                        La première société partenaire qui accepte prend en
+                        charge
+                      </span>
+                    </button>
+                  ) : null}
+                  {companies.map((c) => (
+                    <button
+                      key={c.id}
+                      type="button"
+                      className="patient-choice"
+                      data-selected={
+                        draft.dispatch_mode === "specific" &&
+                        draft.company_id === c.id
+                      }
+                      aria-pressed={
+                        draft.dispatch_mode === "specific" &&
+                        draft.company_id === c.id
+                      }
+                      onClick={() => {
+                        setDraft((d) => ({
+                          ...d,
+                          dispatch_mode: "specific",
+                          company_id: c.id,
+                        }));
+                        setError(null);
+                      }}
+                    >
+                      {c.name}
+                    </button>
+                  ))}
+                </>
+              )}
             </fieldset>
           </div>
         ) : null}

@@ -116,3 +116,11 @@ a[role="button"],
     animation: none !important;
   }
 }
+
+@media print {
+  .qr-poster {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    box-shadow: none !important;
+  }
+}

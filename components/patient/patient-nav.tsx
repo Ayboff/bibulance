@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 const NAV = [
   { href: "/commander", label: "Commander", description: "Nouvelle demande de transport" },
   { href: "/mes-transports", label: "Mes trajets", description: "Voir mes transports" },
-  { href: "/compte", label: "Mon compte", description: "Gérer mon profil" },
+  { href: "/compte", label: "Compte", description: "Créer un compte ou se connecter" },
 ];
 
 export function PatientNav() {

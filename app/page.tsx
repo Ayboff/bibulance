@@ -9,7 +9,7 @@ export default async function HomePage() {
     : session
       ? "/pro/onboarding"
       : "/login?next=/pro/missions";
-  const patientHref = session ? "/commander" : "/login?next=/commander";
+  const patientHref = "/commander";
 
   return (
     <HomeLanding
