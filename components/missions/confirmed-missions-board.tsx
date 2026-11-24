@@ -4,12 +4,16 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
 
 import { MissionSourceChips } from "@/components/missions/mission-source-chips";
 import { StatusBadge } from "@/components/missions/status-badge";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { vehicleBusyLabel } from "@/lib/fleet/availability";
 import { getMissionBookingMeta } from "@/lib/missions/booking-meta";
 import {
   formatDateKeyLong,
@@ -17,11 +21,22 @@ import {
   toDateKey,
   todayKey,
 } from "@/lib/missions/dates";
-import { formatDateTime, formatTime } from "@/lib/missions/format";
+import {
+  formatDateTime,
+  formatTime,
+  fromDatetimeLocalValue,
+  toDatetimeLocalValue,
+} from "@/lib/missions/format";
 import { useCompanyMissionsRealtime } from "@/lib/missions/realtime";
-import type { Mission } from "@/types/database";
+import type { Mission, VehicleType } from "@/types/database";
 
 type ViewMode = "upcoming" | "history";
+
+type Vehicle = {
+  id: string;
+  code: string;
+  vehicle_type: VehicleType;
+};
 
 function mergeMission(list: Mission[], mission: Mission, eventType: string) {
   if (eventType === "DELETE" || mission.deleted_at) {
@@ -89,19 +104,28 @@ function formatBirthdateFr(iso: string | null) {
   }
 }
 
+function vehicleLabelOf(vehicles: Vehicle[], id: string | null | undefined) {
+  if (!id) return null;
+  const v = vehicles.find((x) => x.id === id);
+  return v ? `${v.code} (${v.vehicle_type})` : "Véhicule";
+}
+
 export function ConfirmedMissionsBoard({
   companyId,
   initialMissions,
-  vehicleLabels,
+  vehicles,
 }: {
   companyId: string;
   initialMissions: Mission[];
-  vehicleLabels: Record<string, string>;
+  vehicles: Vehicle[];
 }) {
   const [missions, setMissions] = useState(initialMissions);
   const [q, setQ] = useState("");
   const [view, setView] = useState<ViewMode>("upcoming");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const busyRef = useRef(false);
   const today = todayKey();
 
   const onRealtime = useCallback(
@@ -111,6 +135,52 @@ export function ConfirmedMissionsBoard({
     [],
   );
   useCompanyMissionsRealtime(companyId, onRealtime);
+
+  async function patchMission(id: string, body: Record<string, unknown>) {
+    if (busyRef.current) return;
+    busyRef.current = true;
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/missions/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "Mise à jour impossible");
+      setMissions((prev) => mergeMission(prev, json.mission, "UPDATE"));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Erreur");
+    } finally {
+      busyRef.current = false;
+      setBusy(false);
+    }
+  }
+
+  async function patchPec(id: string, pecLocal: string) {
+    if (busyRef.current) return;
+    busyRef.current = true;
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/missions/${id}/pec`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          pec_estimated_time: fromDatetimeLocalValue(pecLocal),
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "Échec PEC");
+      setMissions((prev) => mergeMission(prev, json.mission, "UPDATE"));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Erreur");
+    } finally {
+      busyRef.current = false;
+      setBusy(false);
+    }
+  }
 
   const { upcomingCount, historyCount, groups, flatVisible } = useMemo(() => {
     const query = q.trim().toLowerCase();
@@ -144,6 +214,13 @@ export function ConfirmedMissionsBoard({
       setSelectedId(null);
     }
   }, [flatVisible, selectedId]);
+
+  const editable =
+    view === "upcoming" &&
+    selected != null &&
+    selected.status !== "cancelled" &&
+    selected.status !== "refused" &&
+    selected.status !== "done";
 
   return (
     <div className="space-y-5">
@@ -190,14 +267,23 @@ export function ConfirmedMissionsBoard({
 
       <p className="text-sm text-muted">
         {view === "upcoming"
-          ? "Cliquez une mission pour voir toutes les informations (téléphone, n° sécu., trajet…)."
-          : "Missions confirmées des jours passés — cliquez pour consulter le détail."}
+          ? "Cliquez une mission pour modifier véhicule, PEC ou statut."
+          : "Missions confirmées des jours passés — consultation."}
       </p>
+
+      {error ? (
+        <p
+          className="rounded-xl border border-[var(--danger)]/30 bg-[#fee2e2] px-3 py-2 text-sm font-semibold text-[var(--danger)]"
+          role="alert"
+        >
+          {error}
+        </p>
+      ) : null}
 
       {groups.length === 0 ? (
         <EmptyState view={view} hasQuery={q.trim().length > 0} />
       ) : (
-        <div className="grid gap-4 xl:grid-cols-[1fr_380px]">
+        <div className="grid gap-4 xl:grid-cols-[1fr_400px]">
           <div className="space-y-5">
             {groups.map(([dateKey, rows]) => {
               const isToday = dateKey === today;
@@ -257,14 +343,14 @@ export function ConfirmedMissionsBoard({
                               </div>
                               <div className="text-sm text-muted sm:text-right">
                                 <p className="font-medium text-foreground">
-                                  {m.assigned_vehicle_id
-                                    ? (vehicleLabels[m.assigned_vehicle_id] ??
-                                      "Véhicule")
-                                    : "Non affectée"}
+                                  {vehicleLabelOf(vehicles, m.assigned_vehicle_id) ??
+                                    "Non affectée"}
                                 </p>
                                 <p>{m.vehicle_type}</p>
                                 <p className="mt-1 text-xs font-semibold text-accent">
-                                  Voir le détail →
+                                  {view === "upcoming"
+                                    ? "Modifier →"
+                                    : "Voir le détail →"}
                                 </p>
                               </div>
                             </button>
@@ -298,18 +384,17 @@ export function ConfirmedMissionsBoard({
             </div>
             {!selected ? (
               <p className="text-sm text-muted">
-                Sélectionnez une mission dans la liste pour afficher téléphone,
-                n° sécu., trajet et affectation.
+                Sélectionnez une mission pour voir et modifier l’affectation.
               </p>
             ) : (
               <ConfirmedMissionDetail
                 mission={selected}
-                vehicleLabel={
-                  selected.assigned_vehicle_id
-                    ? (vehicleLabels[selected.assigned_vehicle_id] ??
-                      "Véhicule")
-                    : null
-                }
+                vehicles={vehicles}
+                missions={missions}
+                editable={editable}
+                busy={busy}
+                onPatch={(body) => void patchMission(selected.id, body)}
+                onPec={(local) => void patchPec(selected.id, local)}
               />
             )}
           </aside>
@@ -321,10 +406,20 @@ export function ConfirmedMissionsBoard({
 
 function ConfirmedMissionDetail({
   mission,
-  vehicleLabel,
+  vehicles,
+  missions,
+  editable,
+  busy,
+  onPatch,
+  onPec,
 }: {
   mission: Mission;
-  vehicleLabel: string | null;
+  vehicles: Vehicle[];
+  missions: Mission[];
+  editable: boolean;
+  busy: boolean;
+  onPatch: (body: Record<string, unknown>) => void;
+  onPec: (pecLocal: string) => void;
 }) {
   const meta = getMissionBookingMeta(mission);
   const birth = formatBirthdateFr(meta.patient_birthdate);
@@ -334,6 +429,30 @@ function ConfirmedMissionDetail({
       : mission.trip_type === "retour"
         ? "Retour"
         : "Aller";
+
+  const [pecLocal, setPecLocal] = useState(
+    toDatetimeLocalValue(mission.pec_estimated_time),
+  );
+  const [notes, setNotes] = useState(mission.notes ?? "");
+
+  useEffect(() => {
+    setPecLocal(toDatetimeLocalValue(mission.pec_estimated_time));
+    setNotes(mission.notes ?? "");
+  }, [mission.id, mission.pec_estimated_time, mission.notes]);
+
+  const vehicleOptions = useMemo(() => {
+    return vehicles
+      .filter((v) =>
+        mission.vehicle_type ? v.vehicle_type === mission.vehicle_type : true,
+      )
+      .map((v) => {
+        const busyLabel =
+          mission.assigned_vehicle_id === v.id
+            ? null
+            : vehicleBusyLabel(v.id, mission, missions);
+        return { ...v, busyLabel };
+      });
+  }, [vehicles, missions, mission]);
 
   return (
     <div className="space-y-4 text-sm">
@@ -367,10 +486,31 @@ function ConfirmedMissionDetail({
           label="Véhicule demandé"
           value={mission.vehicle_type === "AMB" ? "Ambulance" : "VSL"}
         />
-        <DetailRow
-          label="Prise en charge (PEC)"
-          value={formatDateTime(mission.pec_estimated_time)}
-        />
+        {editable ? (
+          <div className="space-y-2 pt-1">
+            <Label htmlFor="pec-edit">Prise en charge (PEC)</Label>
+            <input
+              id="pec-edit"
+              type="datetime-local"
+              className="min-h-11 w-full rounded-lg border border-border bg-background px-3 text-base"
+              value={pecLocal}
+              disabled={busy}
+              onChange={(e) => setPecLocal(e.target.value)}
+            />
+            <Button
+              variant="secondary"
+              disabled={busy || !pecLocal}
+              onClick={() => onPec(pecLocal)}
+            >
+              Enregistrer la PEC
+            </Button>
+          </div>
+        ) : (
+          <DetailRow
+            label="Prise en charge (PEC)"
+            value={formatDateTime(mission.pec_estimated_time)}
+          />
+        )}
       </DetailBlock>
 
       <DetailBlock title="Patient">
@@ -440,15 +580,121 @@ function ConfirmedMissionDetail({
       ) : null}
 
       <DetailBlock title="Affectation">
-        <DetailRow
-          label="Véhicule"
-          value={vehicleLabel ?? "Non affectée"}
-        />
+        {editable ? (
+          <div className="space-y-3">
+            <div className="space-y-2">
+              <Label htmlFor="vehicle-edit">Véhicule</Label>
+              <select
+                id="vehicle-edit"
+                className="min-h-11 w-full rounded-lg border border-border bg-background px-3 text-base"
+                value={mission.assigned_vehicle_id ?? ""}
+                disabled={busy}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  if (!value) {
+                    onPatch({
+                      assigned_vehicle_id: null,
+                      assigned_driver_id: null,
+                    });
+                    return;
+                  }
+                  const option = vehicleOptions.find((v) => v.id === value);
+                  if (option?.busyLabel) {
+                    window.alert(
+                      `${option.code} : ${option.busyLabel}. Choisissez un autre véhicule.`,
+                    );
+                    e.target.value = mission.assigned_vehicle_id ?? "";
+                    return;
+                  }
+                  onPatch({ assigned_vehicle_id: value });
+                }}
+              >
+                <option value="">Non affectée…</option>
+                {vehicleOptions.map((v) => (
+                  <option
+                    key={v.id}
+                    value={v.id}
+                    disabled={Boolean(v.busyLabel)}
+                  >
+                    {v.code} ({v.vehicle_type})
+                    {v.busyLabel ? ` — ${v.busyLabel}` : " — libre"}
+                  </option>
+                ))}
+              </select>
+              {mission.assigned_vehicle_id ? (
+                <Button
+                  variant="secondary"
+                  disabled={busy}
+                  onClick={() =>
+                    onPatch({
+                      assigned_vehicle_id: null,
+                      assigned_driver_id: null,
+                    })
+                  }
+                >
+                  Désaffecter
+                </Button>
+              ) : null}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="notes-edit">Notes (régulation)</Label>
+              <textarea
+                id="notes-edit"
+                className="min-h-20 w-full rounded-lg border border-border bg-background px-3 py-2 text-base"
+                value={notes}
+                disabled={busy}
+                onChange={(e) => setNotes(e.target.value)}
+              />
+              <Button
+                variant="secondary"
+                disabled={busy || notes === (mission.notes ?? "")}
+                onClick={() => onPatch({ notes: notes.trim() || null })}
+              >
+                Enregistrer les notes
+              </Button>
+            </div>
+
+            <div className="flex flex-col gap-2 border-t border-border pt-3">
+              {mission.status === "confirmed" || mission.status === "assigned" ? (
+                <Button
+                  disabled={busy || !mission.assigned_vehicle_id}
+                  onClick={() => onPatch({ status: "in_progress" })}
+                >
+                  Marquer en trajet
+                </Button>
+              ) : null}
+              {mission.status === "in_progress" ? (
+                <Button
+                  disabled={busy}
+                  onClick={() => onPatch({ status: "done" })}
+                >
+                  Marquer terminée
+                </Button>
+              ) : null}
+              {!mission.assigned_vehicle_id ? (
+                <p className="text-xs text-muted">
+                  Affectez un véhicule avant de passer « en trajet ».
+                </p>
+              ) : null}
+            </div>
+          </div>
+        ) : (
+          <>
+            <DetailRow
+              label="Véhicule"
+              value={
+                vehicleLabelOf(vehicles, mission.assigned_vehicle_id) ??
+                "Non affectée"
+              }
+            />
+            {mission.notes ? (
+              <DetailRow label="Notes" value={mission.notes} />
+            ) : null}
+          </>
+        )}
         {mission.care_type ? (
           <DetailRow label="Motif / soin" value={mission.care_type} />
-        ) : null}
-        {mission.notes ? (
-          <DetailRow label="Notes" value={mission.notes} />
         ) : null}
       </DetailBlock>
     </div>
