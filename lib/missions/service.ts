@@ -17,6 +17,8 @@ import {
   assertMissionTransition,
   canPatientCancel,
 } from "@/lib/missions/transitions";
+import { findOverlappingVehicleMissions } from "@/lib/fleet/availability";
+import { formatTime } from "@/lib/missions/format";
 import { sealNir } from "@/lib/privacy/nir";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Database, Json, Mission, MissionStatus } from "@/types/database";
@@ -373,7 +375,7 @@ export async function updateMission(
   if (input.assigned_vehicle_id) {
     const { data: vehicle, error: vehicleError } = await client
       .from("vehicles")
-      .select("id, company_id, is_active")
+      .select("id, company_id, is_active, code")
       .eq("id", input.assigned_vehicle_id)
       .maybeSingle();
     if (vehicleError) throw new ApiError(500, vehicleError.message);
@@ -383,6 +385,29 @@ export async function updateMission(
       vehicle.is_active === false
     ) {
       throw new ApiError(400, "Véhicule invalide pour cette société");
+    }
+
+    // Cohérence planning : pas deux courses qui se chevauchent sur le même véhicule.
+    const { data: companyMissions, error: conflictError } = await client
+      .from("missions")
+      .select("*")
+      .eq("company_id", session.activeCompanyId)
+      .eq("assigned_vehicle_id", input.assigned_vehicle_id)
+      .is("deleted_at", null)
+      .not("status", "in", "(cancelled,refused,done)");
+    if (conflictError) throw new ApiError(500, conflictError.message);
+
+    const conflicts = findOverlappingVehicleMissions(
+      input.assigned_vehicle_id,
+      current,
+      (companyMissions ?? []) as Mission[],
+    );
+    if (conflicts.length > 0) {
+      const other = conflicts[0]!;
+      throw new ApiError(
+        409,
+        `Le véhicule ${vehicle.code} est déjà affecté sur une course à ${formatTime(other.rdv_time)}. Choisissez un autre véhicule ou un autre créneau.`,
+      );
     }
 
     patch.assigned_at = now;
