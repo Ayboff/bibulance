@@ -20,7 +20,7 @@ const NAV = [
   { href: "/pro/missions", label: "Missions", icon: ListChecks },
   { href: "/pro/confirmed", label: "Confirmées", icon: CheckCircle2 },
   { href: "/pro/fleet", label: "Parc", icon: Truck },
-  { href: "/pro/affiches", label: "QR véhicules", icon: QrCode },
+  { href: "/pro/affiches", label: "Affiche QR", icon: QrCode },
   { href: "/pro/connectors", label: "Connecteurs", icon: Plug },
   { href: "/pro/settings", label: "Paramètres", icon: Settings },
 ] as const;
