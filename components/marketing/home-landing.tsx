@@ -348,15 +348,15 @@ export function HomeLanding({
             Prêt à commencer ?
           </h2>
           <p className="mt-4 max-w-xl text-lg text-muted">
-            Créez un compte en quelques minutes. Particulier ou société : vous
-            choisissez votre entrée.
+            Particulier : commandez sans créer de compte. Société : équipez votre
+            régulation en quelques minutes.
           </p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
             <Link
-              href={isLoggedIn ? patientHref : "/register?intent=patient"}
+              href={patientHref}
               className="inline-flex min-h-12 items-center justify-center rounded-xl bg-accent px-7 text-base font-semibold text-accent-foreground transition hover:bg-[#367f91]"
             >
-              Compte particulier
+              Commander un transport
             </Link>
             <Link
               href={isLoggedIn ? proHref : "/register?intent=company"}

@@ -1,15 +1,22 @@
+import { NextResponse } from "next/server";
+
 import { ApiError, jsonError, jsonOk } from "@/lib/api/http";
-import { requireSession, requireStaffSession } from "@/lib/auth/session";
+import { getSessionContext, requireStaffSession } from "@/lib/auth/session";
+import { attachGuestTokenCookie } from "@/lib/guest/tokens";
 import {
   createPatientMissionSchema,
   listMissionsQuerySchema,
 } from "@/lib/missions/schema";
+import { createGuestPatientMission } from "@/lib/missions/guest-service";
 import { createPatientMission, listMissions } from "@/lib/missions/service";
 import { createClient } from "@/lib/supabase/server";
 
 export async function GET(request: Request) {
   try {
-    const session = await requireSession();
+    const session = await getSessionContext();
+    if (!session) {
+      return jsonError(new ApiError(401, "Connexion requise"));
+    }
     const url = new URL(request.url);
     const parsed = listMissionsQuerySchema.safeParse(
       Object.fromEntries(url.searchParams.entries()),
@@ -34,7 +41,6 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const session = await requireSession();
     const body = await request.json();
     const parsed = createPatientMissionSchema.safeParse(body);
 
@@ -44,17 +50,35 @@ export async function POST(request: Request) {
       );
     }
 
-    const supabase = await createClient();
-    const result = await createPatientMission(supabase, session, parsed.data);
-    return jsonOk(
+    const session = await getSessionContext();
+
+    if (session) {
+      const supabase = await createClient();
+      const result = await createPatientMission(supabase, session, parsed.data);
+      return jsonOk(
+        {
+          ok: true,
+          mission: result.mission,
+          missions: result.missions,
+          created_count: result.created_count,
+        },
+        201,
+      );
+    }
+
+    const result = await createGuestPatientMission(parsed.data);
+    const response = NextResponse.json(
       {
         ok: true,
         mission: result.mission,
         missions: result.missions,
         created_count: result.created_count,
+        guest_access_token: result.guest_access_token,
       },
-      201,
+      { status: 201 },
     );
+    await attachGuestTokenCookie(response, result.guest_access_token);
+    return response;
   } catch (error) {
     return jsonError(error);
   }

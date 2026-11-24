@@ -1,8 +1,12 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
 
 import { getSessionContext } from "@/lib/auth/session";
+import { readGuestTokensFromCookies } from "@/lib/guest/tokens";
 import { formatDateTime, formatTime } from "@/lib/missions/format";
+import {
+  guestTokenOf,
+  listMissionsByGuestTokens,
+} from "@/lib/missions/guest-service";
 import { getMission } from "@/lib/missions/service";
 import { createClient } from "@/lib/supabase/server";
 
@@ -12,6 +16,7 @@ type SearchParams = Promise<{
   partners?: string;
   recurring?: string;
   iterative?: string;
+  token?: string;
 }>;
 
 export default async function CommanderSuccessPage({
@@ -20,22 +25,33 @@ export default async function CommanderSuccessPage({
   searchParams: SearchParams;
 }) {
   const session = await getSessionContext();
-  if (!session) redirect("/login?next=/commander");
-
   const params = await searchParams;
+  const guestTokens = await readGuestTokensFromCookies();
+
   let pec: string | null = null;
   let rdv: string | null = null;
+  let trackToken: string | null = params.token ?? null;
   const count = Math.max(1, Number(params.count ?? "1") || 1);
   const partners = params.partners === "1";
   const iterative = params.iterative === "1" || params.recurring === "1";
 
   if (params.id) {
     try {
-      const supabase = await createClient();
-      const mission = await getMission(supabase, params.id);
-      if (mission.created_by === session.userId) {
-        pec = mission.pec_estimated_time;
-        rdv = mission.rdv_time;
+      if (session) {
+        const supabase = await createClient();
+        const mission = await getMission(supabase, params.id);
+        if (mission.created_by === session.userId) {
+          pec = mission.pec_estimated_time;
+          rdv = mission.rdv_time;
+        }
+      } else if (guestTokens.length > 0) {
+        const missions = await listMissionsByGuestTokens(guestTokens);
+        const mission = missions.find((m) => m.id === params.id) ?? missions[0];
+        if (mission) {
+          pec = mission.pec_estimated_time;
+          rdv = mission.rdv_time;
+          trackToken = guestTokenOf(mission) ?? trackToken;
+        }
       }
     } catch {
       // ignore — still show success
@@ -54,6 +70,12 @@ export default async function CommanderSuccessPage({
               : "Votre demande de transport a bien été reçue."}{" "}
           Suivez l’avancement dans « Mes trajets ».
         </p>
+        {!session ? (
+          <p className="text-base font-semibold text-[var(--accent)]">
+            Conservez ce téléphone / cet appareil pour revoir vos trajets sans
+            créer de compte.
+          </p>
+        ) : null}
         {partners ? (
           <p className="text-base font-semibold text-[var(--accent)]">
             La première société qui accepte prendra en charge votre trajet.

@@ -4,7 +4,8 @@ import { NextResponse, type NextRequest } from "next/server";
 import type { Database } from "@/types/database";
 
 const AUTH_PATHS = ["/login", "/register"];
-const PATIENT_PROTECTED = ["/mes-transports", "/compte", "/commander"];
+/** Compte seulement — /commander et /mes-transports sont ouverts (invité OK). */
+const PATIENT_PROTECTED = ["/compte"];
 const PRO_PREFIX = "/pro";
 
 function isAuthPath(pathname: string) {
