@@ -58,14 +58,40 @@ export function isTerminalMissionStatus(status: string): boolean {
   return TERMINAL_STATUSES.has(status as MissionStatus);
 }
 
+/**
+ * Demande encore en recherche, jamais acceptée, et l’horaire RDV est dépassé.
+ * Plus pertinent dans « À venir » — le patient doit être informé clairement.
+ */
+export function isUnacceptedPastDeadline(
+  mission: Pick<
+    Mission,
+    "status" | "rdv_time" | "accepted_bibulance" | "external_payload"
+  >,
+  nowMs = Date.now(),
+): boolean {
+  if (mission.accepted_bibulance) return false;
+  if (
+    mission.status !== "incoming" &&
+    mission.status !== "pending_platform"
+  ) {
+    return false;
+  }
+  const rdvMs = Date.parse(mission.rdv_time);
+  if (Number.isNaN(rdvMs)) return false;
+  return rdvMs < nowMs;
+}
+
 /** Active trips that still belong in the « À venir » feed. */
 export function isActiveUpcomingMission(
-  mission: Pick<Mission, "status" | "rdv_time">,
-  _nowMs = Date.now(),
+  mission: Pick<
+    Mission,
+    "status" | "rdv_time" | "accepted_bibulance" | "external_payload"
+  >,
+  nowMs = Date.now(),
 ): boolean {
-  // Non-terminal missions stay upcoming even if RDV is delayed / overdue.
-  void _nowMs;
-  return !isTerminalMissionStatus(mission.status);
+  if (isTerminalMissionStatus(mission.status)) return false;
+  if (isUnacceptedPastDeadline(mission, nowMs)) return false;
+  return true;
 }
 
 export function patientStatus(status: string) {
@@ -79,7 +105,10 @@ export function patientStatus(status: string) {
 }
 
 /** Contextual patient-facing explanation (cancellation / refusal reasons). */
-export function patientStatusDetail(mission: Mission): {
+export function patientStatusDetail(
+  mission: Mission,
+  nowMs = Date.now(),
+): {
   label: string;
   hint: string;
   tone: "info" | "progress" | "ok" | "done" | "bad";
@@ -88,6 +117,14 @@ export function patientStatusDetail(mission: Mission): {
   const meta = getMissionBookingMeta(mission);
 
   if (mission.status === "cancelled") {
+    if (meta.expired_unaccepted === true || meta.cancel_reason === "expired_unaccepted") {
+      return {
+        label: "Horaires dépassés",
+        hint:
+          "L’heure du rendez-vous est passée et aucune société n’a accepté à temps. Créez une nouvelle demande si vous avez encore besoin d’un transport.",
+        tone: "bad",
+      };
+    }
     if (meta.dispatch_mode === "partners") {
       return {
         ...base,
@@ -114,6 +151,16 @@ export function patientStatusDetail(mission: Mission): {
       ...base,
       hint:
         "La société choisie n’a pas pu prendre en charge cette demande. Vous pouvez commander à nouveau auprès d’une autre société ou sans préférence (partenaires Bibulance).",
+    };
+  }
+
+  // Still "incoming" in DB but past RDV — show expired until server cancel catches up
+  if (isUnacceptedPastDeadline(mission, nowMs)) {
+    return {
+      label: "Horaires dépassés",
+      hint:
+        "L’heure du rendez-vous est passée et aucune société n’a accepté. Cette demande n’est plus active — créez-en une nouvelle si besoin.",
+      tone: "bad",
     };
   }
 
