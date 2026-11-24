@@ -1,6 +1,6 @@
 import QRCode from "qrcode";
 
-import { getPublicSiteUrl } from "@/lib/guest/tokens";
+import { getPublicSiteUrl } from "@/lib/site-url";
 
 export function companyBookingUrl(slug: string, vehicleCode?: string): string {
   const base = `${getPublicSiteUrl()}/c/${encodeURIComponent(slug)}`;

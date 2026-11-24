@@ -1,6 +1,8 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
+export { getPublicSiteUrl } from "@/lib/site-url";
+
 export const GUEST_TOKENS_COOKIE = "bibulance_guest_tokens";
 const MAX_TOKENS = 20;
 
@@ -63,13 +65,4 @@ export async function attachGuestTokenCookie(
     maxAge: opts.maxAge,
   });
   return response;
-}
-
-export function getPublicSiteUrl(): string {
-  const explicit = process.env.NEXT_PUBLIC_SITE_URL?.trim();
-  if (explicit) return explicit.replace(/\/$/, "");
-  if (process.env.VERCEL_URL) {
-    return `https://${process.env.VERCEL_URL.replace(/\/$/, "")}`;
-  }
-  return "https://www.bibulance.fr";
 }
