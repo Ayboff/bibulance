@@ -17,23 +17,23 @@ export default async function ProConfirmedPage() {
     listCompanyVehicles(supabase, session.activeCompanyId),
   ]);
 
-  const vehicleLabels = Object.fromEntries(
-    vehicles.map((v) => [v.id, `${v.code} (${v.vehicle_type})`]),
-  );
-
   return (
     <section className="space-y-4">
       <div>
         <h1 className="text-2xl font-semibold text-ink">Planning confirmé</h1>
         <p className="text-muted">
-          Aujourd’hui et à venir pour le suivi opérationnel — les journées
-          passées sont dans l’historique.
+          Aujourd’hui et à venir — vous pouvez encore changer le véhicule, la
+          PEC et le statut même après confirmation.
         </p>
       </div>
       <ConfirmedMissionsBoard
         companyId={session.activeCompanyId}
         initialMissions={missions}
-        vehicleLabels={vehicleLabels}
+        vehicles={vehicles.map((v) => ({
+          id: v.id,
+          code: v.code,
+          vehicle_type: v.vehicle_type,
+        }))}
       />
     </section>
   );

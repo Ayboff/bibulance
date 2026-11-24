@@ -429,6 +429,7 @@ export async function updateMission(
   }
 
   // Resolve final status from combined flags (vehicle can be set before confirm).
+  // Ne pas rétrograder une mission déjà en trajet / terminée quand on change le véhicule.
   if (!input.status) {
     const accepted =
       (patch.accepted_bibulance ?? current.accepted_bibulance) === true;
@@ -442,6 +443,11 @@ export async function updateMission(
 
     if (input.accepted_bibulance === false) {
       // already set to refused above
+    } else if (
+      current.status === "in_progress" ||
+      current.status === "done"
+    ) {
+      // conserve le statut opérationnel
     } else if (hasVehicle && (confirmed || accepted)) {
       patch.status = confirmed ? "assigned" : "pending_platform";
     } else if (confirmed) {
